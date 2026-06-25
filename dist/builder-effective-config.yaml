@@ -1,0 +1,10 @@
+directories:
+  output: dist
+  buildResources: build
+publish:
+  - provider: github
+    owner: fachry2204
+    repo: botcyber
+asar: false
+files: []
+electronVersion: 42.5.0
