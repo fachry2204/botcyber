@@ -1,0 +1,1298 @@
+<!DOCTYPE html><html lang="id"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BotCyber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .tab-btn.active {
+            border-bottom: 2px solid #38bdf8;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col p-4 md:p-6 bg-[#0f172a]">
+
+
+    <!-- Header Navigation Menu -->
+    <header class="w-full max-w-7xl mx-auto glass-panel rounded-2xl px-6 py-4 mb-4 shadow-xl flex items-center justify-center relative z-50">
+        <span class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 text-center">
+            BotCyber
+        </span>
+    </header>
+
+    <!-- Main Navigation Cards -->
+    <nav class="w-full max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6 relative z-40">
+        <a href="/index.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-cyan-400 hover:bg-gray-800/80 transition-all shadow-lg group">
+            <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">▶️</span>
+            <span class="text-gray-300 group-hover:text-cyan-400 font-bold text-sm">YouTube</span>
+        </a>
+        
+        <a href="/bot-tiktok.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-white hover:border-white hover:bg-gray-800/80 transition-all shadow-lg group">
+            <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">🎵</span>
+            <span class="text-white font-bold text-sm">TikTok</span>
+        </a>
+        
+        <div class="relative group h-full">
+            <a href="#" class="h-full flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-green-400 hover:bg-gray-800/80 transition-all shadow-lg">
+                <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">🎧</span>
+                <span class="text-gray-300 group-hover:text-green-400 font-bold text-sm flex items-center">
+                    Spotify <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </span>
+            </a>
+            <div class="absolute left-0 top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 flex flex-col py-1">
+                <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:text-green-400 hover:bg-gray-700 text-center">Buat Akun</a>
+                <a href="/bot-spotify.html" class="block px-4 py-2 text-sm text-gray-300 hover:text-green-400 hover:bg-gray-700 text-center">Stream</a>
+            </div>
+        </div>
+        
+        <a href="#" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-pink-500 hover:bg-gray-800/80 transition-all shadow-lg group opacity-50 cursor-not-allowed">
+            <span class="text-2xl mb-1">📸</span>
+            <span class="text-gray-400 font-bold text-sm">Instagram</span>
+        </a>
+        
+        <a href="#" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-blue-400 hover:bg-gray-800/80 transition-all shadow-lg group opacity-50 cursor-not-allowed">
+            <span class="text-2xl mb-1">🌊</span>
+            <span class="text-gray-400 font-bold text-sm">TIDAL</span>
+        </a>
+        
+        <a href="#" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-green-500 hover:bg-gray-800/80 transition-all shadow-lg group opacity-50 cursor-not-allowed">
+            <span class="text-2xl mb-1">🎥</span>
+            <span class="text-gray-400 font-bold text-sm">Rumble</span>
+        </a>
+        
+        <a href="/proxy-finder.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-purple-400 hover:bg-gray-800/80 transition-all shadow-lg group">
+            <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">🔍</span>
+            <span class="text-gray-300 group-hover:text-purple-400 font-bold text-sm">Proxy Finder</span>
+        </a>
+    </nav>
+
+    <!-- VIEW 1: BOT DASHBOARD -->
+    <div id="viewBot" class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        <!-- Kolom Kontrol Dashboard -->
+        <div class="lg:col-span-4 glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide">
+            <h1 id="mainTitle" class="text-3xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center">Bot TikTok 🎵</h1>
+
+             <!-- end formYoutubeContainer -->
+
+            <!-- Form TikTok -->
+            <div id="formTikTokContainer" class="">
+                <form id="tiktokForm" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Pilih Mode Bot</label>
+                        <select id="ttMode" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm mb-4">
+                            <option value="live">1. Bot Live (Like, Share, Tap Layar)</option>
+                            <option value="upload">2. Upload Konten (Video/Gambar Web)</option>
+                            <option value="phonefarm">3. Add Video PF (Phonefarm via ADB)</option>
+                        </select>
+                    </div>
+
+                    <div id="ttLiveGroup" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Link Live TikTok</label>
+                            <input type="url" id="ttLiveUrl" placeholder="https://www.tiktok.com/@username/live" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                        </div>
+                        <div class="flex items-center space-x-3 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                            <input type="checkbox" id="ttLike" class="w-5 h-5 text-pink-500 bg-gray-900 border-gray-700 rounded cursor-pointer" checked="">
+                            <label for="ttLike" class="text-sm font-semibold text-gray-300 cursor-pointer">Auto Like
+                                Video</label>
+                        </div>
+                        <div class="flex items-center space-x-3 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                            <input type="checkbox" id="ttShare" class="w-5 h-5 text-pink-500 bg-gray-900 border-gray-700 rounded cursor-pointer" checked="">
+                            <label for="ttShare" class="text-sm font-semibold text-gray-300 cursor-pointer">Auto Share
+                                (Copy Link)</label>
+                        </div>
+                        <div class="flex items-center space-x-3 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                            <input type="checkbox" id="ttTap" class="w-5 h-5 text-pink-500 bg-gray-900 border-gray-700 rounded cursor-pointer" checked="">
+                            <label for="ttTap" class="text-sm font-semibold text-gray-300 cursor-pointer">Auto Tap
+                                Layar</label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Jumlah Tap Layar (Per
+                                Bot)</label>
+                            <input type="number" id="ttTapCount" value="100" min="1" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                        </div>
+                    </div>
+
+                    <div id="ttUploadGroup" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Pilih File Lokal
+                                (Video/Gambar)</label>
+                            <input type="file" id="ttFilePath" accept="video/*,image/*" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                            <p class="text-xs text-gray-500 mt-1">Pilih video/gambar dari komputer Anda.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Add Song / Lagu (Kosongkan
+                                jika tak perlu)</label>
+                            <input type="text" id="ttSong" placeholder="Judul lagu (Opsional)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Deskripsi / Caption</label>
+                            <textarea id="ttCaption" rows="3" placeholder="#fyp #viral" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="ttPhonefarmGroup" class="space-y-4 hidden">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-semibold text-gray-300">Device ADB Terkoneksi</label>
+                                <button type="button" id="refreshAdbBtn" class="text-xs bg-gray-800 hover:bg-gray-700 text-pink-400 px-2 py-1 rounded border border-gray-700 transition">
+                                    🔄 Refresh Devices
+                                </button>
+                            </div>
+                            <select id="ttPfDeviceId" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                                <option value="">Auto-detect (Perangkat Pertama)</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1" id="adbStatusText">Pilih device jika Anda menggunakan
+                                Phonefarm.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Pilih File PC (Otomatis
+                                ditransfer ke HP)</label>
+                            <input type="file" id="ttPfFilePath" accept="video/*,image/*" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Pencarian Sound / Musik
+                                TikTok</label>
+                            <input type="text" id="ttPfSong" placeholder="Contoh: DJ Viral 2024" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Deskripsi / Caption PF</label>
+                            <textarea id="ttPfCaption" rows="3" placeholder="#fyp #phonefarm" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-700 my-4">
+
+                    <div id="ttUaGroup">
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Tipe User Agent
+                            (Perangkat)</label>
+                        <select id="ttUserAgentMode" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                            <option value="mobile">HP / Smartphone (Direkomendasikan)</option>
+                            <option value="desktop">PC / Laptop Windows</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Daftar Akun TikTok (Format:
+                            username:password)</label>
+                        <textarea id="ttAccountFile" rows="3" placeholder="user1:pass1
+user2:pass2
+Kosongkan jika login manual" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm font-mono"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Pilihan Proxy TikTok</label>
+                        <select id="ttProxySource" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm mb-4">
+                            <option value="manual">Manual : Tampilkan Pengisian Proxy Manual</option>
+                            <option value="proxifly">Proxifly : Ambil Data Proxy dari Proxifly (GitHub)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Proxy List</label>
+                        <textarea id="ttProxyFile" rows="3" placeholder="Kosongkan untuk tanpa proxy" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm font-mono"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Tampilan Bot</label>
+                        <select id="ttHeadless" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                            <option value="false">Terlihat (Tampil di Layar)</option>
+                            <option value="true">Siluman (Background)</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Untuk Upload, gunakan mode Terlihat agar Anda bisa Login
+                            TikTok manual pertama kali jika diperlukan.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Jumlah Browser Serentak</label>
+                        <input type="number" id="ttBrowserCount" value="1" min="1" max="100" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm">
+                    </div>
+
+                    <div class="flex space-x-3 mt-8 pb-4">
+                        <button type="submit" id="ttStartBtn" class="w-2/3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition hover:-translate-y-1 active:scale-95 text-md">
+                            ▶ Mulai TikTok Bot
+                        </button>
+                        <button type="button" id="ttStopBtn" disabled="" class="w-1/3 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition hover:-translate-y-1 active:scale-95 text-md opacity-50 cursor-not-allowed">
+                            🛑 Stop
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Kolom Live Terminal Monitor -->
+        <div class="lg:col-span-8 glass-panel rounded-2xl p-6 shadow-2xl flex flex-col h-[90vh]">
+
+            <!-- SYSTEM MONITOR BAR -->
+            <div class="grid grid-cols-5 gap-2 mb-4 p-3 bg-gray-900 rounded-xl border border-gray-700">
+                <div class="text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">CPU</p>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mb-1">
+                        <div id="cpuBar" class="bg-cyan-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <p class="text-sm font-bold text-cyan-400" id="cpuVal">0%</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">RAM</p>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mb-1">
+                        <div id="ramBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <p class="text-sm font-bold text-purple-400" id="ramVal">0%</p>
+                </div>
+                <div class="text-center flex flex-col justify-center items-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">NETWORK</p>
+                    <p class="text-xs font-bold text-yellow-400" id="netRx">↓ 0 KB/s</p>
+                    <p class="text-xs font-bold text-orange-400" id="netTx">↑ 0 KB/s</p>
+                </div>
+                <div class="text-center flex flex-col justify-center items-center border-l border-gray-700 pl-2">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">🌐 Total UA</p>
+                    <p class="text-xs font-bold text-cyan-400"><span id="sysUaDesktopBar">0</span> D | <span class="text-pink-400"><span id="sysUaMobileBar">0</span> M</span></p>
+                    <p class="text-xs font-bold text-white">Total: <span id="sysUaTotalBar">0</span></p>
+                </div>
+                <div class="text-center flex justify-center items-center border-l border-gray-700 pl-2">
+                    <div id="statusBadge" class="px-4 py-2 text-sm font-bold rounded-full bg-gray-700 text-gray-300 shadow-inner flex items-center transition-colors">
+                        <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> IDLE
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
+                <div class="flex space-x-6">
+                    <button id="tabLogs" class="tab-btn active pb-2 text-gray-400 font-bold hover:text-white transition cursor-pointer flex items-center">
+                        📄 Live Logs
+                    </button>
+                    <button id="tabSuccess" class="tab-btn pb-2 text-gray-400 font-bold hover:text-green-400 transition cursor-pointer flex items-center">
+                        ✅ Sukses
+                    </button>
+                    <button id="tabFailed" class="tab-btn pb-2 text-gray-400 font-bold hover:text-red-400 transition cursor-pointer flex items-center">
+                        ☠️ Gagal
+                    </button>
+                    <button id="tabAll" class="tab-btn pb-2 text-gray-400 font-bold hover:text-yellow-400 transition cursor-pointer flex items-center">
+                        📊 Log Semua
+                    </button>
+                    <button id="tabActiveBots" class="tab-btn pb-2 text-gray-400 font-bold hover:text-cyan-400 transition cursor-pointer flex items-center">
+                        🌐 Bot Aktif
+                    </button>
+                </div>
+                <div class="flex space-x-4">
+                    <button id="clearDataBtn" class="bg-red-900 hover:bg-red-700 text-red-200 text-xs px-3 py-1 rounded border border-red-700 transition">
+                        🗑️ Clear Proxy Data
+                    </button>
+                </div>
+            </div>
+
+            <div id="logsContainer" class="flex-grow bg-[#0d1117] rounded-xl p-5 overflow-y-auto font-mono text-sm leading-relaxed border border-gray-800 shadow-inner relative">
+                <!-- Tab Logs -->
+                <div id="logs" class="text-green-400 absolute inset-x-5 top-5 bottom-5 overflow-y-auto scrollbar-hide space-y-1">
+                    <span class="text-gray-500 italic">Menunggu perintah...</span>
+                </div>
+                <!-- Tab Success IPs -->
+                <div id="successLogs" class="text-green-300 absolute inset-x-5 top-5 bottom-5 overflow-y-auto scrollbar-hide space-y-1 hidden">
+                    <span class="text-gray-500 italic">Belum ada proxy yang sukses.</span>
+                </div>
+                <!-- Tab Failed IPs -->
+                <div id="failedLogs" class="text-red-400 absolute inset-x-5 top-5 bottom-5 overflow-y-auto scrollbar-hide space-y-1 hidden">
+                    <span class="text-gray-500 italic">Belum ada proxy yang gagal.</span>
+                </div>
+                <!-- Tab Log Semua -->
+                <div id="allLogs" class="absolute inset-x-5 top-5 bottom-5 overflow-y-auto scrollbar-hide hidden">
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Video Diputar</p>
+                            <p class="text-4xl font-extrabold text-yellow-400 mt-1" id="statVideoTotal">0</p>
+                        </div>
+                        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Video Sukses</p>
+                            <p class="text-4xl font-extrabold text-green-400 mt-1" id="statVideoSuccess">0</p>
+                        </div>
+                        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Video Gagal / Error</p>
+                            <p class="text-4xl font-extrabold text-red-400 mt-1" id="statVideoFailed">0</p>
+                        </div>
+                    </div>
+
+                    <!-- UA Statistics (Kotak Merah) -->
+                    <div class="grid grid-cols-3 gap-4 mb-4 p-4 rounded-xl border-2 border-red-500 bg-gray-800 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                        <div class="text-center border-r border-gray-700">
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider">Total UA</p>
+                            <p class="text-3xl font-extrabold text-white mt-1" id="statUaTotal">0</p>
+                        </div>
+                        <div class="text-center border-r border-gray-700">
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider">UA Desktop</p>
+                            <p class="text-3xl font-extrabold text-white mt-1" id="statUaDesktop">0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider">UA Mobile</p>
+                            <p class="text-3xl font-extrabold text-white mt-1" id="statUaMobile">0</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 p-3 bg-gray-900 rounded-lg border border-gray-800">
+                        <p class="text-xs text-gray-500 text-center italic">Statistik video diperbarui secara real-time
+                            saat bot berjalan.</p>
+                    </div>
+                </div>
+                <!-- Tab Bot Aktif -->
+                <div id="activeBotsLogs" class="absolute inset-x-5 top-5 bottom-5 overflow-y-auto scrollbar-hide space-y-2 hidden">
+                    <span class="text-gray-500 italic">Belum ada bot yang aktif.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div id="screenshotModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 hidden backdrop-blur-sm transition-all duration-300">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full mx-4 flex flex-col">
+            <div class="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700">
+                <h3 class="text-lg font-bold text-cyan-400" id="screenshotTitle">View Bot</h3>
+                <button id="closeScreenshotBtn" class="text-gray-400 hover:text-red-400 transition text-2xl font-bold">
+                    ×
+                </button>
+            </div>
+            <div class="p-4 flex justify-center bg-black relative">
+                <p id="screenshotLoading" class="absolute text-cyan-400 font-bold italic z-0 mt-20 hidden">📸 Memuat
+                    Layar...</p>
+                <img id="screenshotImg" src="" class="max-w-full max-h-[70vh] object-contain rounded z-10" alt="Bot Screenshot">
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .aspect-portrait {
+            aspect-ratio: 9/16;
+        }
+    </style>
+
+    <!-- VIEW 3: PHONEFARM MIRROR -->
+    
+
+    <!-- VIEW 2: PROXY FINDER -->
+    
+
+    <script>
+
+        // POLYFILL TO PREVENT JS CRASHES ON MISSING ELEMENTS (TARGETED)
+        const idsToMock = ['logs','successLogs','failedLogs','botForm','startBtn','stopBtn','clearDataBtn','statusBadge','tabLogs','tabSuccess','tabFailed','viewBot','viewFinder','viewMirror','menuBot','menuFinder','menuMirror','finderForm','btnFind','btnStopFind','btnDownload','finderLogs','goodProxyCount','finderStatus','menuTikTok','formYoutubeContainer','formTikTokContainer','mainTitle','trafficSource','directInputGroup','searchInputGroup','embedInputGroup','ttMode','ttLiveGroup','ttUploadGroup','ttPhonefarmGroup','ttUaGroup','ttPfDeviceId','adbStatusText','refreshAdbBtn','tabAll','tabActiveBots','allLogs','activeBotsLogs','statVideoTotal','statVideoSuccess','statVideoFailed','screenshotModal','closeScreenshotBtn','screenshotImg','screenshotTitle','screenshotLoading','btnScanMirror','mirrorGrid','checkSyncAll','searchMirror','zoomSliderMirror','statUaTotal','statUaDesktop','statUaMobile','sysUaTotalBar','sysUaDesktopBar','sysUaMobileBar','cpuVal','cpuBar','ramVal','ramBar','netRx','netTx','proxySource','proxyFile','ttProxySource','ttProxyFile','tabFinder','tabChecker','finderFormContainer','checkerFormContainer','checkerForm','checkProxyList','proxyType','findCountry','findCount','repeatBot','repeatBotOptions','checkWhoer','recoUrl','recoDuration','embedWebUrl','videoUrl','searchKeyword','searchVideoId','headlessMode','browserCount','watchDurationMin','watchDurationMax','userAgentMode','tabDelay','randomVideoUrl','tiktokForm','ttStartBtn','ttStopBtn','ttFilePath','ttPfFilePath','ttLiveUrl','ttLike','ttShare','ttTap','ttTapCount','ttSong','ttCaption','ttPfSong','ttPfCaption','ttUserAgentMode','ttAccountFile','ttHeadless','ttBrowserCount'];
+        const origGetElementById = document.getElementById;
+        document.getElementById = function(id) {
+            let el = origGetElementById.call(document, id);
+            if (!el && idsToMock.includes(id)) {
+                el = document.createElement('div');
+                el.value = '';
+                el.checked = false;
+            }
+            return el;
+        };
+
+        const socket = io();
+        const logsEl = document.getElementById('logs');
+        const successLogsEl = document.getElementById('successLogs');
+        const failedLogsEl = document.getElementById('failedLogs');
+        const form = document.getElementById('botForm');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearDataBtn = document.getElementById('clearDataBtn');
+        const statusBadge = document.getElementById('statusBadge');
+
+        const tabLogs = document.getElementById('tabLogs');
+        const tabSuccess = document.getElementById('tabSuccess');
+        const tabFailed = document.getElementById('tabFailed');
+
+        const viewBot = document.getElementById('viewBot');
+        const viewFinder = document.getElementById('viewFinder');
+        const viewMirror = document.getElementById('viewMirror');
+        const menuBot = document.getElementById('menuBot');
+        const menuFinder = document.getElementById('menuFinder');
+        const menuMirror = document.getElementById('menuMirror');
+
+        // Proxy Finder Elements
+        const finderForm = document.getElementById('finderForm');
+        const btnFind = document.getElementById('btnFind');
+        const btnStopFind = document.getElementById('btnStopFind');
+        const btnDownload = document.getElementById('btnDownload');
+        const finderLogs = document.getElementById('finderLogs');
+        const goodProxyCount = document.getElementById('goodProxyCount');
+        const finderStatus = document.getElementById('finderStatus');
+
+        let foundProxies = [];
+
+        const menuTikTok = document.getElementById('menuTikTok');
+        const formYoutubeContainer = document.getElementById('formYoutubeContainer');
+        const formTikTokContainer = document.getElementById('formTikTokContainer');
+        const mainTitle = document.getElementById('mainTitle');
+
+        // View Navigation
+        function resetNav() {
+            [menuBot, menuFinder, menuTikTok, menuMirror].forEach(m => {
+                if (m) {
+                    m.classList.remove('text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'border-b-2', 'border-cyan-400', 'border-purple-300', 'border-pink-400', 'border-yellow-400');
+                    m.classList.add('text-gray-400');
+                }
+            });
+            viewBot.classList.add('hidden');
+            viewFinder.classList.add('hidden');
+            viewMirror.classList.add('hidden');
+            formYoutubeContainer.classList.add('hidden');
+            formTikTokContainer.classList.add('hidden');
+        }
+
+        
+
+        if (menuMirror) {
+            menuMirror.addEventListener('click', () => {
+                resetNav();
+                viewMirror.classList.remove('hidden');
+                menuMirror.classList.add('text-yellow-400', 'border-b-2', 'border-yellow-400');
+                menuMirror.classList.remove('text-gray-400');
+                if (typeof scanMirrorDevices === 'function') scanMirrorDevices();
+            });
+        }
+
+        // FITUR: Simpan dan Muat Pengaturan (Local Storage)
+        const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl'];
+        const checkboxIds = ['checkWhoer', 'repeatBot'];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            inputIds.forEach(id => {
+                const saved = localStorage.getItem('bot_setting_' + id);
+                if (saved !== null) {
+                    document.getElementById(id).value = saved;
+                }
+            });
+            checkboxIds.forEach(id => {
+                const saved = localStorage.getItem('bot_setting_' + id);
+                if (saved !== null) {
+                    document.getElementById(id).checked = saved === 'true';
+                }
+            });
+        });
+
+        inputIds.forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                localStorage.setItem('bot_setting_' + id, e.target.value);
+            });
+        });
+        checkboxIds.forEach(id => {
+            document.getElementById(id).addEventListener('change', (e) => {
+                localStorage.setItem('bot_setting_' + id, e.target.checked);
+            });
+        });
+
+        // Toggle UI based on Traffic Source
+        const trafficSourceEl = document.getElementById('trafficSource');
+        const directInputGroup = document.getElementById('directInputGroup');
+        const searchInputGroup = document.getElementById('searchInputGroup');
+        const embedInputGroup = document.getElementById('embedInputGroup');
+
+        function toggleTrafficUI() {
+            directInputGroup.classList.add('hidden');
+            searchInputGroup.classList.add('hidden');
+            if (embedInputGroup) embedInputGroup.classList.add('hidden');
+
+            if (trafficSourceEl.value === 'search') {
+                searchInputGroup.classList.remove('hidden');
+            } else if (trafficSourceEl.value === 'embed') {
+                if (embedInputGroup) embedInputGroup.classList.remove('hidden');
+            } else {
+                directInputGroup.classList.remove('hidden');
+            }
+        }
+        trafficSourceEl.addEventListener('change', toggleTrafficUI);
+        setTimeout(toggleTrafficUI, 100);
+
+        // Toggle UI based on TikTok Mode
+        const ttModeEl = document.getElementById('ttMode');
+        const ttLiveGroup = document.getElementById('ttLiveGroup');
+        const ttUploadGroup = document.getElementById('ttUploadGroup');
+        const ttPhonefarmGroup = document.getElementById('ttPhonefarmGroup');
+        const ttUaGroup = document.getElementById('ttUaGroup');
+
+        function toggleTikTokUI() {
+            if (ttModeEl.value === 'live') {
+                ttLiveGroup.classList.remove('hidden');
+                ttUploadGroup.classList.add('hidden');
+                ttPhonefarmGroup.classList.add('hidden');
+                ttUaGroup.classList.remove('hidden');
+            } else if (ttModeEl.value === 'upload') {
+                ttLiveGroup.classList.add('hidden');
+                ttUploadGroup.classList.remove('hidden');
+                ttPhonefarmGroup.classList.add('hidden');
+                ttUaGroup.classList.remove('hidden');
+            } else {
+                ttLiveGroup.classList.add('hidden');
+                ttUploadGroup.classList.add('hidden');
+                ttPhonefarmGroup.classList.remove('hidden');
+                ttUaGroup.classList.add('hidden');
+            }
+        }
+        ttModeEl.addEventListener('change', toggleTikTokUI);
+        setTimeout(toggleTikTokUI, 100);
+
+        async function fetchAdbDevices() {
+            const selectEl = document.getElementById('ttPfDeviceId');
+            const statusEl = document.getElementById('adbStatusText');
+            if (!selectEl) return;
+
+            const prevValue = selectEl.value;
+            selectEl.innerHTML = '<option value="">Memuat perangkat...</option>';
+
+            try {
+                const res = await fetch('/api/adb-devices');
+                const data = await res.json();
+
+                selectEl.innerHTML = '<option value="">Auto-detect (Sembarang Perangkat)</option>';
+                if (data.devices && data.devices.length > 0) {
+                    data.devices.forEach(dev => {
+                        const opt = document.createElement('option');
+                        opt.value = dev.id;
+                        opt.textContent = `${dev.name} [${dev.status}]`;
+                        if (dev.status === 'unauthorized') opt.disabled = true;
+                        selectEl.appendChild(opt);
+                    });
+                    statusEl.innerHTML = `<span class="text-green-400">${data.devices.length} perangkat terdeteksi.</span>`;
+
+                    // Coba kembalikan nilai sebelumnya jika masih ada
+                    if (prevValue && Array.from(selectEl.options).some(o => o.value === prevValue)) {
+                        selectEl.value = prevValue;
+                    }
+                } else {
+                    statusEl.innerHTML = '<span class="text-red-400">Tidak ada perangkat ADB terdeteksi. Pastikan HP terhubung.</span>';
+                }
+            } catch (err) {
+                selectEl.innerHTML = '<option value="">Auto-detect (Sembarang Perangkat)</option>';
+                statusEl.innerHTML = `<span class="text-red-400">Gagal memuat daftar perangkat ADB. Pastikan server menyala.</span>`;
+            }
+        }
+
+        document.getElementById('refreshAdbBtn')?.addEventListener('click', fetchAdbDevices);
+        ttModeEl.addEventListener('change', () => {
+            if (ttModeEl.value === 'phonefarm') fetchAdbDevices();
+        });
+
+        // Tab Navigation
+        function switchTab(activeBtn, activeEl) {
+            [tabLogs, tabSuccess, tabFailed, tabAll, tabActiveBots].forEach(b => b.classList.remove('active', 'border-b-2', 'border-white', 'text-white'));
+            [logsEl, successLogsEl, failedLogsEl, allLogsEl, activeBotsLogs].forEach(e => e.classList.add('hidden'));
+            activeBtn.classList.add('active', 'border-b-2', 'border-white', 'text-white');
+            activeEl.classList.remove('hidden');
+        }
+
+        // DOM references
+        const tabAll = document.getElementById('tabAll');
+        const tabActiveBots = document.getElementById('tabActiveBots');
+        const allLogsEl = document.getElementById('allLogs');
+        const activeBotsLogs = document.getElementById('activeBotsLogs');
+        const statVideoTotal = document.getElementById('statVideoTotal');
+        const statVideoSuccess = document.getElementById('statVideoSuccess');
+        const statVideoFailed = document.getElementById('statVideoFailed');
+
+        tabLogs.addEventListener('click', () => switchTab(tabLogs, logsEl));
+        tabSuccess.addEventListener('click', () => switchTab(tabSuccess, successLogsEl));
+        tabFailed.addEventListener('click', () => switchTab(tabFailed, failedLogsEl));
+        tabAll.addEventListener('click', () => switchTab(tabAll, allLogsEl));
+        tabActiveBots.addEventListener('click', () => switchTab(tabActiveBots, activeBotsLogs));
+
+        // Clear Data
+        clearDataBtn.addEventListener('click', () => {
+            if (confirm('Anda yakin ingin mereset history Proxy Sukses dan Gagal? Proxy yang sudah terpakai akan bisa dipakai lagi.')) {
+                socket.emit('clear-proxy-data');
+            }
+        });
+
+        function appendLog(msg, container) {
+            const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="text-gray-600">[${time}]</span> ${msg}`;
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        socket.on('init-proxies', (data) => {
+            successLogsEl.innerHTML = '';
+            failedLogsEl.innerHTML = '';
+            if (data.success.length === 0) successLogsEl.innerHTML = '<span class="text-gray-500 italic">Belum ada proxy yang sukses.</span>';
+            if (data.failed.length === 0) failedLogsEl.innerHTML = '<span class="text-gray-500 italic">Belum ada proxy yang gagal.</span>';
+
+            data.success.forEach(p => appendLog(`✅ ${p}`, successLogsEl));
+            data.failed.forEach(p => appendLog(`☠️ ${p}`, failedLogsEl));
+        });
+
+        socket.on('log', (msg) => {
+            if (logsEl.innerHTML.includes('Menunggu perintah...')) logsEl.innerHTML = '';
+            appendLog(msg, logsEl);
+        });
+
+        socket.on('proxy-success', (proxyStr) => {
+            if (successLogsEl.innerHTML.includes('Belum ada proxy yang sukses')) successLogsEl.innerHTML = '';
+            appendLog(`✅ Proxy Selesai: ${proxyStr}`, successLogsEl);
+        });
+
+        socket.on('proxy-failed', (data) => {
+            if (failedLogsEl.innerHTML.includes('Belum ada proxy yang gagal')) failedLogsEl.innerHTML = '';
+            appendLog(`☠️ ${data.proxy} ➔ ${data.reason}`, failedLogsEl);
+        });
+
+        socket.on('active-bots', (bots) => {
+            if (bots.length === 0) {
+                activeBotsLogs.innerHTML = '<span class="text-gray-500 italic">Belum ada bot yang aktif.</span>';
+                return;
+            }
+
+            let html = '<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">';
+            bots.forEach(bot => {
+                const uptime = Math.floor((Date.now() - bot.startTime) / 1000);
+                html += `
+                    <div class="bg-gray-800 border border-gray-600 rounded-lg p-3 flex justify-between items-center shadow">
+                        <div class="overflow-hidden">
+                            <div class="font-bold text-cyan-300 mb-1">${bot.id}</div>
+                            <div class="text-xs text-gray-300 font-mono mb-1 truncate">Proxy: ${bot.proxy}</div>
+                            <div class="text-[10px] text-yellow-400 truncate">Device: ${bot.device} | Uptime: ${uptime}s</div>
+                        </div>
+                        <div class="flex flex-col space-y-2 ml-2">
+                            <button onclick="requestViewBot('${bot.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded transition">👁️ View</button>
+                            <button onclick="socket.emit('close-bot', '${bot.id}')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded transition">❌ Close</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            activeBotsLogs.innerHTML = html;
+        });
+
+        // Screenshot Logic
+        const screenshotModal = document.getElementById('screenshotModal');
+        const closeScreenshotBtn = document.getElementById('closeScreenshotBtn');
+        const screenshotImg = document.getElementById('screenshotImg');
+        const screenshotTitle = document.getElementById('screenshotTitle');
+        const screenshotLoading = document.getElementById('screenshotLoading');
+
+        // Override view function so we can show loading text before the image arrives
+        window.requestViewBot = function (botId) {
+            screenshotTitle.innerText = `Layar Saat Ini: ${botId}`;
+            screenshotImg.src = '';
+            screenshotLoading.classList.remove('hidden');
+            screenshotModal.classList.remove('hidden');
+            socket.emit('view-bot', botId);
+        };
+
+        closeScreenshotBtn.addEventListener('click', () => {
+            screenshotModal.classList.add('hidden');
+        });
+
+        // Mirror & Sync Logic
+        const btnScanMirror = document.getElementById('btnScanMirror');
+        const mirrorGrid = document.getElementById('mirrorGrid');
+        const checkSyncAll = document.getElementById('checkSyncAll');
+        const searchMirror = document.getElementById('searchMirror');
+        const zoomSliderMirror = document.getElementById('zoomSliderMirror');
+
+        if (zoomSliderMirror) {
+            zoomSliderMirror.addEventListener('input', (e) => {
+                const size = e.target.value;
+                if (mirrorGrid) {
+                    mirrorGrid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}px, 1fr))`;
+                }
+            });
+        }
+
+        if (searchMirror) {
+            searchMirror.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const cards = mirrorGrid.children;
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    if (card.tagName !== 'DIV') continue;
+                    const name = card.getAttribute('data-name') || '';
+                    if (name.includes(term)) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        async function scanMirrorDevices() {
+            if (!mirrorGrid) return;
+            mirrorGrid.innerHTML = '<p class="text-gray-400 italic">Mencari perangkat ADB...</p>';
+            try {
+                const res = await fetch('/api/adb-devices');
+                const data = await res.json();
+
+                if (data.devices && data.devices.length > 0) {
+                    mirrorGrid.innerHTML = '';
+                    data.devices.forEach(dev => {
+                        if (dev.status === 'unauthorized') return;
+
+                        const card = document.createElement('div');
+                        card.className = 'relative w-full bg-black rounded-xl overflow-hidden border-2 border-gray-800 shadow-xl group hover:border-yellow-500 transition-colors';
+                        card.setAttribute('data-name', dev.name.toLowerCase() + ' ' + dev.id.toLowerCase());
+                        card.style.paddingBottom = '177.77%';
+                        card.innerHTML = `
+                            <img id="mirror-img-${dev.id}" class="absolute inset-0 w-full h-full object-contain z-0 hidden pointer-events-none" />
+                            
+                            <div class="absolute top-0 inset-x-0 bg-gradient-to-b from-black/90 via-black/50 to-transparent p-3 pointer-events-none z-10">
+                                <div class="flex justify-between items-start">
+                                    <div class="text-center w-full">
+                                        <div class="text-yellow-400 font-extrabold text-sm drop-shadow-md truncate">${dev.name}</div>
+                                        <div class="text-gray-300 font-semibold text-[10px] drop-shadow-md">${dev.id}</div>
+                                    </div>
+                                    <div class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] absolute right-3 top-3"></div>
+                                </div>
+                            </div>
+                            
+                            <div id="mirror-overlay-${dev.id}" class="absolute inset-0 z-20 w-full h-full cursor-pointer"></div>
+                            
+                            <div id="mirror-loading-${dev.id}" class="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                <span class="text-xs font-bold text-gray-500 animate-pulse">Menghubungkan...</span>
+                            </div>
+                            
+                            <!-- Bottom Navigation Bar (Overlay) -->
+                            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 z-30 flex justify-center space-x-6">
+                                <!-- Recent Apps -->
+                                <button onclick="sendKeyEvent('${dev.id}', 187)" class="text-gray-300 hover:text-white hover:scale-110 transition-transform focus:outline-none" title="Recent Apps">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"></rect></svg>
+                                </button>
+                                <!-- Home -->
+                                <button onclick="sendKeyEvent('${dev.id}', 3)" class="text-gray-300 hover:text-white hover:scale-110 transition-transform focus:outline-none" title="Home">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"></circle></svg>
+                                </button>
+                                <!-- Back -->
+                                <button onclick="sendKeyEvent('${dev.id}', 4)" class="text-gray-300 hover:text-white hover:scale-110 transition-transform focus:outline-none" title="Back">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                            </div>
+                        `;
+                        mirrorGrid.appendChild(card);
+
+                        const overlay = document.getElementById(`mirror-overlay-${dev.id}`);
+                        if (!overlay) return;
+
+                        let startX = 0, startY = 0, isDragging = false;
+
+                        overlay.addEventListener('mousedown', (e) => {
+                            isDragging = true;
+                            const rect = overlay.getBoundingClientRect();
+                            startX = (e.clientX - rect.left) / rect.width;
+                            startY = (e.clientY - rect.top) / rect.height;
+                        });
+
+                        overlay.addEventListener('mouseup', (e) => {
+                            if (!isDragging) return;
+                            isDragging = false;
+                            const rect = overlay.getBoundingClientRect();
+                            const endX = (e.clientX - rect.left) / rect.width;
+                            const endY = (e.clientY - rect.top) / rect.height;
+                            const isSyncAll = checkSyncAll ? checkSyncAll.checked : false;
+
+                            const dist = Math.hypot(endX - startX, endY - startY);
+                            if (dist < 0.02) {
+                                // Tap
+                                socket.emit('sync-tap', { deviceId: dev.id, px: startX, py: startY, isSyncAll });
+                                showClickEffect(overlay, e.clientX - rect.left, e.clientY - rect.top);
+                            } else {
+                                // Swipe
+                                socket.emit('sync-swipe', { deviceId: dev.id, px1: startX, py1: startY, px2: endX, py2: endY, isSyncAll });
+                            }
+                        });
+
+                        overlay.addEventListener('mouseleave', () => { isDragging = false; });
+
+                        // Auto-start layarnya
+                        setTimeout(() => {
+                            if (!activeMirrors.has(dev.id)) {
+                                toggleMirror(dev.id);
+                            }
+                        }, 200);
+                    });
+                } else {
+                    mirrorGrid.innerHTML = '<p class="text-red-400 font-bold">Tidak ada perangkat ADB yang terhubung.</p>';
+                }
+            } catch (e) {
+                mirrorGrid.innerHTML = '<p class="text-red-400 font-bold">Gagal mengambil daftar perangkat ADB.</p>';
+            }
+        }
+
+        if (btnScanMirror) btnScanMirror.addEventListener('click', scanMirrorDevices);
+
+        const activeMirrors = new Set();
+        window.toggleMirror = function (deviceId) {
+            if (activeMirrors.has(deviceId)) {
+                socket.emit('stop-mirror', deviceId);
+                activeMirrors.delete(deviceId);
+            } else {
+                socket.emit('start-mirror', deviceId);
+                activeMirrors.add(deviceId);
+            }
+        };
+
+        socket.on('mirror-frame', (data) => {
+            const img = document.getElementById(`mirror-img-${data.deviceId}`);
+            const loading = document.getElementById(`mirror-loading-${data.deviceId}`);
+            if (img && activeMirrors.has(data.deviceId)) {
+                img.src = data.image;
+                img.classList.remove('hidden');
+                if (loading) loading.classList.add('hidden');
+            }
+        });
+
+        window.sendKeyEvent = function (deviceId, key) {
+            const isSyncAll = checkSyncAll ? checkSyncAll.checked : false;
+            socket.emit('sync-keyevent', { deviceId, key, isSyncAll });
+        };
+
+        function showClickEffect(parent, x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'absolute rounded-full border-2 border-yellow-400 animate-ping';
+            effect.style.left = (x - 10) + 'px';
+            effect.style.top = (y - 10) + 'px';
+            effect.style.width = '20px';
+            effect.style.height = '20px';
+            effect.style.pointerEvents = 'none';
+            parent.appendChild(effect);
+            setTimeout(() => effect.remove(), 400);
+        }
+
+        socket.on('bot-screenshot', (data) => {
+            screenshotLoading.classList.add('hidden');
+            screenshotImg.src = data.image;
+        });
+
+        socket.on('stats', (stats) => {
+            statSuccess.innerText = stats.success;
+            statFailed.innerText = stats.failed;
+        });
+
+        socket.on('video-stats', (vs) => {
+            statVideoTotal.innerText = vs.total;
+            statVideoSuccess.innerText = vs.success;
+            statVideoFailed.innerText = vs.failed;
+        });
+
+        socket.on('ua-stats', (ua) => {
+            // Update the box in "Log Semua"
+            document.getElementById('statUaTotal').innerText = ua.total;
+            document.getElementById('statUaDesktop').innerText = ua.desktop;
+            document.getElementById('statUaMobile').innerText = ua.mobile;
+
+            // Update the system monitor bar
+            document.getElementById('sysUaTotalBar').innerText = ua.total;
+            document.getElementById('sysUaDesktopBar').innerText = ua.desktop;
+            document.getElementById('sysUaMobileBar').innerText = ua.mobile;
+        });
+
+        socket.on('sys-stats', (s) => {
+            document.getElementById('cpuVal').innerText = s.cpuLoad + '%';
+            document.getElementById('cpuBar').style.width = Math.min(s.cpuLoad, 100) + '%';
+            document.getElementById('cpuBar').className = `h-2 rounded-full transition-all duration-500 ${s.cpuLoad > 80 ? 'bg-red-500' : s.cpuLoad > 60 ? 'bg-yellow-500' : 'bg-cyan-500'}`;
+
+            document.getElementById('ramVal').innerText = s.memUsed + '%';
+            document.getElementById('ramBar').style.width = Math.min(s.memUsed, 100) + '%';
+            document.getElementById('ramBar').className = `h-2 rounded-full transition-all duration-500 ${s.memUsed > 80 ? 'bg-red-500' : s.memUsed > 60 ? 'bg-yellow-500' : 'bg-purple-500'}`;
+
+            document.getElementById('netRx').innerText = `↓ ${s.rxKb} KB/s`;
+            document.getElementById('netTx').innerText = `↑ ${s.txKb} KB/s`;
+        });
+
+        socket.on('status', (status) => {
+            if (status === 'stopped') {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '▶ Mulai Bot';
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                stopBtn.disabled = true;
+                stopBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                stopBtn.innerHTML = '🛑 Stop';
+
+                statusBadge.innerHTML = '<span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> IDLE';
+                statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-gray-700 text-gray-300 shadow-inner flex items-center transition-colors';
+            }
+        });
+
+        // ==========================
+        // PROXY SOURCE LOGIC (Proxifly)
+        // ==========================
+        const proxySource = document.getElementById('proxySource');
+        const proxyFile = document.getElementById('proxyFile');
+
+        if (proxySource) {
+            proxySource.addEventListener('change', async (e) => {
+                if (e.target.value === 'proxifly') {
+                    proxyFile.value = 'Mendownload dari Proxifly...';
+                    proxyFile.disabled = true;
+                    try {
+                        const res = await fetch('/api/fetch-proxifly');
+                        const data = await res.json();
+                        if (data.data) {
+                            proxyFile.value = data.data;
+                        } else {
+                            proxyFile.value = 'Gagal memuat: ' + data.error;
+                        }
+                    } catch (err) {
+                        proxyFile.value = 'Error koneksi ke server.';
+                    }
+                    proxyFile.disabled = false;
+                }
+            });
+        }
+
+        const ttProxySource = document.getElementById('ttProxySource');
+        const ttProxyFile = document.getElementById('ttProxyFile');
+
+        if (ttProxySource) {
+            ttProxySource.addEventListener('change', async (e) => {
+                if (e.target.value === 'proxifly') {
+                    ttProxyFile.value = 'Mendownload dari Proxifly...';
+                    ttProxyFile.disabled = true;
+                    try {
+                        const res = await fetch('/api/fetch-proxifly');
+                        const data = await res.json();
+                        if (data.data) {
+                            ttProxyFile.value = data.data;
+                        } else {
+                            ttProxyFile.value = 'Gagal memuat: ' + data.error;
+                        }
+                    } catch (err) {
+                        ttProxyFile.value = 'Error koneksi ke server.';
+                    }
+                    ttProxyFile.disabled = false;
+                }
+            });
+        }
+
+        // ==========================
+        // PROXY FINDER LOGIC
+        // ==========================
+        socket.on('finder-log', (msg) => {
+            if (finderLogs.innerHTML.includes('Menunggu perintah')) finderLogs.innerHTML = '';
+            appendLog(msg, finderLogs);
+        });
+
+        socket.on('proxy-found', (proxy) => {
+            foundProxies.push(proxy);
+            goodProxyCount.innerText = foundProxies.length;
+            if (foundProxies.length > 0) {
+                btnDownload.classList.remove('hidden');
+            }
+        });
+
+        socket.on('finder-status', (status) => {
+            finderStatus.innerText = status;
+            if (status === 'IDLE') {
+                btnFind.disabled = false;
+                btnFind.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnStopFind.disabled = true;
+                btnStopFind.classList.add('opacity-50', 'cursor-not-allowed');
+                finderStatus.className = 'px-3 py-1 text-xs font-bold rounded-full bg-gray-700 text-gray-300';
+            } else {
+                btnFind.disabled = true;
+                btnFind.classList.add('opacity-50', 'cursor-not-allowed');
+                btnStopFind.disabled = false;
+                btnStopFind.classList.remove('opacity-50', 'cursor-not-allowed');
+                finderStatus.className = 'px-3 py-1 text-xs font-bold rounded-full bg-purple-600 text-white animate-pulse';
+            }
+        });
+
+        const tabFinder = document.getElementById('tabFinder');
+        const tabChecker = document.getElementById('tabChecker');
+        const finderFormContainer = document.getElementById('finderFormContainer');
+        const checkerFormContainer = document.getElementById('checkerFormContainer');
+        const checkerForm = document.getElementById('checkerForm');
+
+        tabFinder.addEventListener('click', () => {
+            tabFinder.className = "text-pink-400 font-bold border-b-2 border-pink-400 pb-1 text-sm transition";
+            tabChecker.className = "text-gray-400 font-bold hover:text-cyan-400 hover:border-b-2 hover:border-cyan-400 pb-1 text-sm transition";
+            finderFormContainer.classList.remove('hidden');
+            checkerFormContainer.classList.add('hidden');
+        });
+
+        tabChecker.addEventListener('click', () => {
+            tabChecker.className = "text-cyan-400 font-bold border-b-2 border-cyan-400 pb-1 text-sm transition";
+            tabFinder.className = "text-gray-400 font-bold hover:text-pink-400 hover:border-b-2 hover:border-pink-400 pb-1 text-sm transition";
+            checkerFormContainer.classList.remove('hidden');
+            finderFormContainer.classList.add('hidden');
+        });
+
+        checkerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            foundProxies = [];
+            goodProxyCount.innerText = '0';
+            btnDownload.classList.add('hidden');
+            finderLogs.innerHTML = '';
+            
+            const list = document.getElementById('checkProxyList').value;
+            if (!list.trim()) return alert('Masukkan daftar proxy terlebih dahulu!');
+
+            try {
+                await fetch('/api/check-proxies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxies: list })
+                });
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Error: ${err.message}</span>`, finderLogs);
+            }
+        });
+
+        finderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            foundProxies = [];
+            goodProxyCount.innerText = '0';
+            btnDownload.classList.add('hidden');
+            finderLogs.innerHTML = '';
+
+            const payload = {
+                type: document.getElementById('proxyType').value,
+                country: document.getElementById('findCountry').value,
+                count: parseInt(document.getElementById('findCount').value)
+            };
+
+            try {
+                await fetch('/api/find-proxies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Error: ${err.message}</span>`, finderLogs);
+            }
+        });
+
+        btnStopFind.addEventListener('click', async () => {
+            await fetch('/api/stop-finder', { method: 'POST' });
+        });
+
+        btnDownload.addEventListener('click', () => {
+            if (foundProxies.length === 0) return;
+            const blob = new Blob([foundProxies.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `proxy_bagus_${new Date().getTime()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // ==========================
+        // BOT LOGIC
+        // ==========================
+        document.getElementById('repeatBot').addEventListener('change', (e) => {
+            document.getElementById('repeatBotOptions').classList.toggle('hidden', !e.target.checked);
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const config = {
+                checkWhoer: document.getElementById('checkWhoer').checked,
+                recoUrl: document.getElementById('recoUrl').value,
+                recoDuration: parseInt(document.getElementById('recoDuration').value),
+                trafficSource: document.getElementById('trafficSource').value,
+                embedWebUrl: document.getElementById('embedWebUrl') ? document.getElementById('embedWebUrl').value : '',
+                videoUrl: document.getElementById('videoUrl').value,
+                searchKeyword: document.getElementById('searchKeyword').value,
+                searchVideoId: document.getElementById('searchVideoId').value,
+                proxyFile: document.getElementById('proxyFile').value,
+                headless: document.getElementById('headlessMode').value === 'true',
+                browserCount: parseInt(document.getElementById('browserCount').value),
+                watchDurationMin: parseInt(document.getElementById('watchDurationMin').value),
+                watchDurationMax: parseInt(document.getElementById('watchDurationMax').value),
+                userAgentMode: document.getElementById('userAgentMode').value,
+                tabDelay: parseInt(document.getElementById('tabDelay').value) || 5,
+                randomVideoUrl: document.getElementById('randomVideoUrl').value,
+                repeatBot: document.getElementById('repeatBot').checked,
+                repeatBotMode: document.querySelector('input[name="repeatBotMode"]:checked') ? document.querySelector('input[name="repeatBotMode"]:checked').value : 'same'
+            };
+
+            startBtn.disabled = true;
+            startBtn.innerHTML = '⚙️ Berjalan...';
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            stopBtn.disabled = false;
+            stopBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            statusBadge.innerHTML = '<span class="w-3 h-3 rounded-full bg-white mr-2 animate-ping"></span> RUNNING';
+            statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-cyan-600 text-white shadow-inner flex items-center animate-pulse';
+
+            try {
+                const res = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    appendLog(`<span class="text-red-500 font-bold">Error Server: ${data.error}</span>`, logsEl);
+                    socket.emit('status', 'stopped');
+                }
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Error Koneksi: ${err.message}</span>`, logsEl);
+                socket.emit('status', 'stopped');
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '⏳ Tunggu...';
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Gagal menghentikan bot: ${err.message}</span>`, logsEl);
+                stopBtn.disabled = false;
+                stopBtn.innerHTML = '🛑 Stop';
+            }
+        });
+
+        // ==========================
+        // TIKTOK BOT LOGIC
+        // ==========================
+        const ttForm = document.getElementById('tiktokForm');
+        const ttStartBtn = document.getElementById('ttStartBtn');
+        const ttStopBtn = document.getElementById('ttStopBtn');
+
+        ttForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            let uploadedWebPath = '';
+            const webFileInput = document.getElementById('ttFilePath');
+            if (webFileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('mediaFile', webFileInput.files[0]);
+                try {
+                    const uploadRes = await fetch('/api/upload-media', { method: 'POST', body: formData });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.filePath) uploadedWebPath = uploadData.filePath;
+                } catch (e) {
+                    appendLog(`<span class="text-red-500 font-bold">Gagal upload file Web: ${e.message}</span>`, logsEl);
+                    return;
+                }
+            }
+
+            let uploadedPfPath = '';
+            const pfFileInput = document.getElementById('ttPfFilePath');
+            if (pfFileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('mediaFile', pfFileInput.files[0]);
+                try {
+                    const uploadRes = await fetch('/api/upload-media', { method: 'POST', body: formData });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.filePath) uploadedPfPath = uploadData.filePath;
+                } catch (e) {
+                    appendLog(`<span class="text-red-500 font-bold">Gagal upload file Phonefarm: ${e.message}</span>`, logsEl);
+                    return;
+                }
+            }
+
+            const config = {
+                platform: 'tiktok',
+                ttMode: document.getElementById('ttMode').value,
+                ttLiveUrl: document.getElementById('ttLiveUrl').value,
+                ttLike: document.getElementById('ttLike').checked,
+                ttShare: document.getElementById('ttShare').checked,
+                ttTap: document.getElementById('ttTap').checked,
+                ttTapCount: parseInt(document.getElementById('ttTapCount').value),
+                ttFilePath: uploadedWebPath,
+                ttSong: document.getElementById('ttSong').value,
+                ttCaption: document.getElementById('ttCaption').value,
+                ttPfDeviceId: document.getElementById('ttPfDeviceId').value,
+                ttPfFilePath: uploadedPfPath,
+                ttPfSong: document.getElementById('ttPfSong').value,
+                ttPfCaption: document.getElementById('ttPfCaption').value,
+                ttUserAgentMode: document.getElementById('ttUserAgentMode').value,
+                accountFile: document.getElementById('ttAccountFile').value,
+                proxyFile: document.getElementById('ttProxyFile').value,
+                headless: document.getElementById('ttHeadless').value === 'true',
+                browserCount: parseInt(document.getElementById('ttBrowserCount').value)
+            };
+
+            ttStartBtn.disabled = true;
+            ttStartBtn.innerHTML = '⚙️ Berjalan...';
+            ttStartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            ttStopBtn.disabled = false;
+            ttStopBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            statusBadge.innerHTML = '<span class="w-3 h-3 rounded-full bg-white mr-2 animate-ping"></span> RUNNING';
+            statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-pink-600 text-white shadow-inner flex items-center animate-pulse';
+
+            try {
+                const res = await fetch('/api/start-tiktok', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    appendLog(`<span class="text-red-500 font-bold">Error Server: ${data.error}</span>`, logsEl);
+                    socket.emit('status', 'stopped');
+                }
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Error Koneksi: ${err.message}</span>`, logsEl);
+                socket.emit('status', 'stopped');
+            }
+        });
+
+        ttStopBtn.addEventListener('click', async () => {
+            ttStopBtn.disabled = true;
+            ttStopBtn.innerHTML = '⏳ Tunggu...';
+            try {
+                await fetch('/api/stop-tiktok', { method: 'POST' });
+            } catch (err) {
+                appendLog(`<span class="text-red-500 font-bold">Gagal menghentikan bot: ${err.message}</span>`, logsEl);
+                ttStopBtn.disabled = false;
+                ttStopBtn.innerHTML = '🛑 Stop';
+            }
+        });
+
+        // Also update the global status listener for TikTok buttons
+        socket.on('status', (status) => {
+            if (status === 'stopped') {
+                // YouTube buttons
+                startBtn.disabled = false;
+                startBtn.innerHTML = '▶ Mulai Bot';
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                stopBtn.disabled = true;
+                stopBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                stopBtn.innerHTML = '🛑 Stop';
+
+                // TikTok buttons
+                ttStartBtn.disabled = false;
+                ttStartBtn.innerHTML = '▶ Mulai TikTok Bot';
+                ttStartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                ttStopBtn.disabled = true;
+                ttStopBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                ttStopBtn.innerHTML = '🛑 Stop';
+
+                statusBadge.innerHTML = '<span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> IDLE';
+                statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-gray-700 text-gray-300 shadow-inner flex items-center transition-colors';
+            }
+        });
+    </script>
+
+
+
+
+</body></html>
