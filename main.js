@@ -59,9 +59,21 @@ app.on('web-contents-created', (event, contents) => {
   });
 });
 
-app.on('ready', () => {
-  console.log("Memulai Server Bot di latar belakang...");
-  // Jalankan server.js secara otomatis di background
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Jika user mencoba buka app lagi, fokuskan ke app yang sudah ada
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.on('ready', () => {
+    console.log("Memulai Server Bot di latar belakang...");
+    // Jalankan server.js secara otomatis di background
   serverProcess = fork(path.join(__dirname, 'server.js'));
   
   // Terima request update dari Express Backend (server.js)
@@ -88,7 +100,15 @@ app.on('window-all-closed', function () {
 // Pastikan proses Node (server.js) juga mati ketika aplikasi ditutup
 app.on('quit', () => {
   if (serverProcess) {
-    try { serverProcess.kill(); } catch (e) {}
+    try { 
+      serverProcess.send({ type: 'shutdown' }); 
+      // Paksa bunuh setelah 500ms jika masih membandel
+      setTimeout(() => {
+        try { serverProcess.kill('SIGKILL'); } catch (e) {}
+      }, 500);
+    } catch (e) {
+      try { serverProcess.kill('SIGKILL'); } catch (err) {}
+    }
   }
 });
 
@@ -141,3 +161,4 @@ autoUpdater.on('update-downloaded', (info) => {
 autoUpdater.on('error', (err) => {
   if(serverProcess) serverProcess.send({ type: 'update-status', status: 'error', message: err.message });
 });
+}

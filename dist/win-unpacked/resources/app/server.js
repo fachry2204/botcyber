@@ -33,6 +33,9 @@ process.on('message', (msg) => {
     if (msg.type === 'update-status') {
         // Forward ke semua client web yang terhubung
         io.emit('ota-update-status', msg);
+    } else if (msg.type === 'shutdown') {
+        console.log("Menerima perintah shutdown dari parent process. Menutup server...");
+        process.exit(0);
     }
 });
 
