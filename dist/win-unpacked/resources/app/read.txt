@@ -1,2 +1,3 @@
-
-npm run build:app.
+npm run build:app -- -p always
+npm run build:app
+npm run build:portable -- -p always
