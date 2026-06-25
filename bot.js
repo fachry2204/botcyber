@@ -6,7 +6,11 @@ import UserAgent from 'user-agents';
 import axios from 'axios';
 
 // Aktifkan mode Stealth agar tidak mudah terdeteksi sebagai Bot/Automation
-chromium.use(stealth());
+const stealthPlugin = stealth();
+// Hapus evasion bawaan yang sering bentrok dengan profil OS spesifik kita
+stealthPlugin.enabledEvasions.delete('user-agent-override');
+stealthPlugin.enabledEvasions.delete('navigator.vendor');
+chromium.use(stealthPlugin);
 
 let currentBrowser = null;
 let isAborted = false;
