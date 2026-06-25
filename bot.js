@@ -516,6 +516,10 @@ export async function runBot(config, callbacks) {
                         Object.defineProperty(document, 'hidden', { get: () => false });
                         window.addEventListener('visibilitychange', (e) => e.stopImmediatePropagation(), true);
 
+                        // Override User Agent secara paksa (Mencegah Stealth Plugin mengembalikannya ke OS Host)
+                        try { Object.defineProperty(navigator, 'userAgent', { get: () => opts.ua }); } catch (e) { }
+                        try { Object.defineProperty(navigator, 'appVersion', { get: () => opts.ua.replace('Mozilla/', '') }); } catch (e) { }
+
                         // Spoofing navigator & platform
                         try { Object.defineProperty(navigator, 'platform', { get: () => opts.platform }); } catch (e) { }
                         if (opts.platform === 'MacIntel' || opts.platform === 'iPhone') {
@@ -527,8 +531,21 @@ export async function runBot(config, callbacks) {
                         if (navigator.userAgentData) {
                             try { Object.defineProperty(navigator.userAgentData, 'platform', { get: () => opts.osName }); } catch (e) { }
                             try { Object.defineProperty(navigator.userAgentData, 'mobile', { get: () => opts.isMobile }); } catch (e) { }
+                            
+                            // Mencegah kebocoran OS asli lewat HighEntropyValues (Sangat penting untuk Chromium baru)
+                            if(navigator.userAgentData.getHighEntropyValues) {
+                                const originalGet = navigator.userAgentData.getHighEntropyValues.bind(navigator.userAgentData);
+                                navigator.userAgentData.getHighEntropyValues = async (hints) => {
+                                    const res = await originalGet(hints);
+                                    if(hints.includes('platform')) res.platform = opts.osName;
+                                    if(hints.includes('platformVersion')) res.platformVersion = opts.osVersion;
+                                    if(hints.includes('architecture')) res.architecture = (opts.osName === 'macOS' || opts.isMobile) ? 'arm' : 'x86';
+                                    if(hints.includes('model')) res.model = opts.isMobile ? 'Mobile Device' : '';
+                                    return res;
+                                };
+                            }
                         }
-                    }, { platform: platformStr, osName: osName, isMobile: isMobileProfile });
+                    }, { platform: platformStr, osName: osName, osVersion: osVersion, isMobile: isMobileProfile, ua: deviceProfile.userAgent });
 
                     await context.clearCookies().catch(() => { });
                     try { await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); }); } catch (e) { }

@@ -492,10 +492,24 @@ app.post('/api/check-proxies', async (req, res) => {
     }
 });
 
-const PORT = 3000;
+const PORT = process.send ? 0 : 3000;
 server.listen(PORT, () => {
+    const actualPort = server.address().port;
     console.log(`\n=================================================`);
     console.log(`🚀 SERVER DASHBOARD SIAP!`);
-    console.log(`Buka browser Anda dan kunjungi: http://localhost:3000`);
+    console.log(`Buka browser Anda dan kunjungi: http://localhost:${actualPort}`);
     console.log(`=================================================\n`);
+    
+    // Beri tahu Electron main process bahwa server siap beserta port-nya
+    if (process.send) {
+        process.send({ type: 'server-ready', port: actualPort });
+    }
+});
+
+// Tangani jika port 3000 bentrok saat mode dev
+server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE' && PORT === 3000) {
+        console.log('Port 3000 terpakai, mencoba port acak...');
+        server.listen(0);
+    }
 });

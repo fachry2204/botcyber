@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 let mainWindow;
 let serverProcess;
 
-function createWindow() {
+function createWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -22,8 +22,8 @@ function createWindow() {
     }
   });
 
-  // Load UI dari localhost
-  mainWindow.loadURL('http://localhost:3000');
+  // Load UI dari port dinamis server
+  mainWindow.loadURL(`http://localhost:${port}`);
 
   mainWindow.on('closed', function () {
     mainWindow = null;
@@ -74,11 +74,10 @@ app.on('ready', () => {
       autoUpdater.downloadUpdate().catch(e => console.error(e));
     } else if (msg.type === 'install-update') {
       autoUpdater.quitAndInstall(false, true);
+    } else if (msg.type === 'server-ready') {
+      createWindow(msg.port);
     }
   });
-
-  // Beri waktu 3 detik agar server express siap berjalan
-  setTimeout(createWindow, 3000);
 });
 
 // Ketika window / aplikasi ditutup
@@ -89,8 +88,7 @@ app.on('window-all-closed', function () {
 // Pastikan proses Node (server.js) juga mati ketika aplikasi ditutup
 app.on('quit', () => {
   if (serverProcess) {
-    console.log("Mematikan Server Bot...");
-    serverProcess.kill();
+    try { serverProcess.kill(); } catch (e) {}
   }
 });
 
