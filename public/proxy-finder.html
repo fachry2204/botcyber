@@ -6,7 +6,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body {
-            background: #0f172a;
+            background: #0a0a0a;
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
         }
@@ -33,21 +33,21 @@
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col p-4 md:p-6 bg-[#0f172a]">
+<body class="min-h-screen flex flex-col p-4 md:p-6 bg-[#0a0a0a]">
 
 
     <!-- Header Navigation Menu -->
     <header class="w-full max-w-7xl mx-auto glass-panel rounded-2xl px-6 py-4 mb-4 shadow-xl flex items-center justify-center relative z-50">
-        <span class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 text-center">
+        <span class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-500 text-center">
             BotCyber
         </span>
     </header>
 
     <!-- Main Navigation Cards -->
     <nav class="w-full max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6 relative z-40">
-        <a href="/index.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-cyan-400 hover:bg-gray-800/80 transition-all shadow-lg group">
+        <a href="/index.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-red-400 hover:bg-gray-800/80 transition-all shadow-lg group">
             <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">▶️</span>
-            <span class="text-gray-300 group-hover:text-cyan-400 font-bold text-sm">YouTube</span>
+            <span class="text-gray-300 group-hover:text-red-400 font-bold text-sm">YouTube</span>
         </a>
         
         <a href="/bot-tiktok.html" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-white hover:bg-gray-800/80 transition-all shadow-lg group">
@@ -73,7 +73,7 @@
             <span class="text-gray-400 font-bold text-sm">Instagram</span>
         </a>
         
-        <a href="#" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-blue-400 hover:bg-gray-800/80 transition-all shadow-lg group opacity-50 cursor-not-allowed">
+        <a href="#" class="flex flex-col items-center justify-center p-3 glass-panel rounded-xl border border-gray-700 hover:border-rose-400 hover:bg-gray-800/80 transition-all shadow-lg group opacity-50 cursor-not-allowed">
             <span class="text-2xl mb-1">🌊</span>
             <span class="text-gray-400 font-bold text-sm">TIDAL</span>
         </a>
@@ -96,13 +96,13 @@
     <div id="screenshotModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 hidden backdrop-blur-sm transition-all duration-300">
         <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full mx-4 flex flex-col">
             <div class="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700">
-                <h3 class="text-lg font-bold text-cyan-400" id="screenshotTitle">View Bot</h3>
+                <h3 class="text-lg font-bold text-red-400" id="screenshotTitle">View Bot</h3>
                 <button id="closeScreenshotBtn" class="text-gray-400 hover:text-red-400 transition text-2xl font-bold">
                     ×
                 </button>
             </div>
             <div class="p-4 flex justify-center bg-black relative">
-                <p id="screenshotLoading" class="absolute text-cyan-400 font-bold italic z-0 mt-20 hidden">📸 Memuat
+                <p id="screenshotLoading" class="absolute text-red-400 font-bold italic z-0 mt-20 hidden">📸 Memuat
                     Layar...</p>
                 <img id="screenshotImg" src="" class="max-w-full max-h-[70vh] object-contain rounded z-10" alt="Bot Screenshot">
             </div>
@@ -127,7 +127,7 @@
             
             <div class="flex space-x-2 mb-6 border-b border-gray-700 pb-2">
                 <button type="button" id="tabFinder" class="text-pink-400 font-bold border-b-2 border-pink-400 pb-1 text-sm transition">Auto Cari</button>
-                <button type="button" id="tabChecker" class="text-gray-400 font-bold hover:text-cyan-400 hover:border-b-2 hover:border-cyan-400 pb-1 text-sm transition">Cek Manual</button>
+                <button type="button" id="tabChecker" class="text-gray-400 font-bold hover:text-red-400 hover:border-b-2 hover:border-red-400 pb-1 text-sm transition">Cek Manual</button>
             </div>
 
             <div id="finderFormContainer">
@@ -180,7 +180,7 @@
 socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm leading-relaxed"></textarea>
                     </div>
                     <div class="flex space-x-2 mt-4">
-                        <button type="submit" id="btnCheckProxies" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2 rounded-xl transition shadow-lg">
+                        <button type="submit" id="btnCheckProxies" class="w-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold py-2 rounded-xl transition shadow-lg">
                             Mulai Cek
                         </button>
                     </div>
@@ -263,7 +263,7 @@ socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded
         function resetNav() {
             [menuBot, menuFinder, menuTikTok, menuMirror].forEach(m => {
                 if (m) {
-                    m.classList.remove('text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'border-b-2', 'border-cyan-400', 'border-purple-300', 'border-pink-400', 'border-yellow-400');
+                    m.classList.remove('text-red-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'border-b-2', 'border-red-400', 'border-purple-300', 'border-pink-400', 'border-yellow-400');
                     m.classList.add('text-gray-400');
                 }
             });
@@ -482,12 +482,12 @@ socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded
                 html += `
                     <div class="bg-gray-800 border border-gray-600 rounded-lg p-3 flex justify-between items-center shadow">
                         <div class="overflow-hidden">
-                            <div class="font-bold text-cyan-300 mb-1">${bot.id}</div>
+                            <div class="font-bold text-red-300 mb-1">${bot.id}</div>
                             <div class="text-xs text-gray-300 font-mono mb-1 truncate">Proxy: ${bot.proxy}</div>
                             <div class="text-[10px] text-yellow-400 truncate">Device: ${bot.device} | Uptime: ${uptime}s</div>
                         </div>
                         <div class="flex flex-col space-y-2 ml-2">
-                            <button onclick="requestViewBot('${bot.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded transition">👁️ View</button>
+                            <button onclick="requestViewBot('${bot.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition">👁️ View</button>
                             <button onclick="socket.emit('close-bot', '${bot.id}')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded transition">❌ Close</button>
                         </div>
                     </div>
@@ -722,7 +722,7 @@ socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded
         socket.on('sys-stats', (s) => {
             document.getElementById('cpuVal').innerText = s.cpuLoad + '%';
             document.getElementById('cpuBar').style.width = Math.min(s.cpuLoad, 100) + '%';
-            document.getElementById('cpuBar').className = `h-2 rounded-full transition-all duration-500 ${s.cpuLoad > 80 ? 'bg-red-500' : s.cpuLoad > 60 ? 'bg-yellow-500' : 'bg-cyan-500'}`;
+            document.getElementById('cpuBar').className = `h-2 rounded-full transition-all duration-500 ${s.cpuLoad > 80 ? 'bg-red-500' : s.cpuLoad > 60 ? 'bg-yellow-500' : 'bg-red-500'}`;
 
             document.getElementById('ramVal').innerText = s.memUsed + '%';
             document.getElementById('ramBar').style.width = Math.min(s.memUsed, 100) + '%';
@@ -839,13 +839,13 @@ socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded
 
         tabFinder.addEventListener('click', () => {
             tabFinder.className = "text-pink-400 font-bold border-b-2 border-pink-400 pb-1 text-sm transition";
-            tabChecker.className = "text-gray-400 font-bold hover:text-cyan-400 hover:border-b-2 hover:border-cyan-400 pb-1 text-sm transition";
+            tabChecker.className = "text-gray-400 font-bold hover:text-red-400 hover:border-b-2 hover:border-red-400 pb-1 text-sm transition";
             finderFormContainer.classList.remove('hidden');
             checkerFormContainer.classList.add('hidden');
         });
 
         tabChecker.addEventListener('click', () => {
-            tabChecker.className = "text-cyan-400 font-bold border-b-2 border-cyan-400 pb-1 text-sm transition";
+            tabChecker.className = "text-red-400 font-bold border-b-2 border-red-400 pb-1 text-sm transition";
             tabFinder.className = "text-gray-400 font-bold hover:text-pink-400 hover:border-b-2 hover:border-pink-400 pb-1 text-sm transition";
             checkerFormContainer.classList.remove('hidden');
             finderFormContainer.classList.add('hidden');
@@ -969,7 +969,7 @@ socks5://10.0.0.1:1080" class="w-full bg-gray-900 border border-gray-700 rounded
             stopBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
             statusBadge.innerHTML = '<span class="w-3 h-3 rounded-full bg-white mr-2 animate-ping"></span> RUNNING';
-            statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-cyan-600 text-white shadow-inner flex items-center animate-pulse';
+            statusBadge.className = 'px-4 py-2 text-sm font-bold rounded-full bg-red-600 text-white shadow-inner flex items-center animate-pulse';
 
             try {
                 const res = await fetch('/api/start', {
