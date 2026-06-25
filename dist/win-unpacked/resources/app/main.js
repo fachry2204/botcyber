@@ -67,9 +67,11 @@ app.on('ready', () => {
   // Terima request update dari Express Backend (server.js)
   serverProcess.on('message', (msg) => {
     if (msg.type === 'check-update') {
-      autoUpdater.checkForUpdates();
+      autoUpdater.checkForUpdates().catch(err => {
+        if(serverProcess) serverProcess.send({ type: 'update-status', status: 'error', message: err.message });
+      });
     } else if (msg.type === 'download-update') {
-      autoUpdater.downloadUpdate();
+      autoUpdater.downloadUpdate().catch(e => console.error(e));
     } else if (msg.type === 'install-update') {
       autoUpdater.quitAndInstall(false, true);
     }
@@ -106,7 +108,9 @@ autoUpdater.autoDownload = false;
 
 // Pengecekan update
 ipcMain.on('check-update', () => {
-  autoUpdater.checkForUpdates();
+  autoUpdater.checkForUpdates().catch(err => {
+    if(serverProcess) serverProcess.send({ type: 'update-status', status: 'error', message: err.message });
+  });
 });
 
 // Download update

@@ -36,6 +36,11 @@ process.on('message', (msg) => {
     }
 });
 
+// Cegah zombie process: jika parent process mati, matikan server
+process.on('disconnect', () => {
+    process.exit(0);
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
