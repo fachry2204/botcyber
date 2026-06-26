@@ -92,7 +92,12 @@ export async function runSpotifyBot(config, callbacks) {
 
             const delayMs = index * tabDelayMs;
             if (delayMs > 0) {
-                await new Promise(r => setTimeout(r, delayMs));
+                log(`[${botId}] ⏳ Menunggu jeda ${(config.tabDelay || 5) * index} detik sebelum membuka tab...`);
+                let waited = 0;
+                while (waited < delayMs && !isAborted) {
+                    await new Promise(r => setTimeout(r, Math.min(1000, delayMs - waited)));
+                    waited += 1000;
+                }
             }
 
             try {

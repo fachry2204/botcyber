@@ -9,6 +9,12 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import si from 'systeminformation';
+import os from 'os';
+import { exec, execFile } from 'child_process';
+import util from 'util';
+
+const execPromise = util.promisify(exec);
+const execFilePromise = util.promisify(execFile);
 import { runBot, stopBot, proxySuccess, proxyFailed, clearProxyData, getActiveBots, closeBot, viewBot } from './bot.js';
 import { runTikTokBot, stopTikTokBot } from './tiktokBot.js';
 import { runSpotifyBot, stopSpotifyBot } from './spotifyBot.js';
@@ -87,47 +93,129 @@ function resetVideoStats() {
 // ============================================
 // SYSTEM MONITORING LOOP
 // ============================================
-let prevNetStats = null;
+function getCpuInfo() {
+    const cpus = os.cpus();
+    let idle = 0;
+    let total = 0;
+    if (!cpus) return { idle: 0, total: 0 };
+    for (const cpu of cpus) {
+        for (const type in cpu.times) {
+            total += cpu.times[type];
+        }
+        idle += cpu.times.idle;
+    }
+    return { idle, total };
+}
+
+let prevCpuInfo = getCpuInfo();
+
+function getCpuLoad() {
+    const currentCpuInfo = getCpuInfo();
+    const idleDiff = currentCpuInfo.idle - prevCpuInfo.idle;
+    const totalDiff = currentCpuInfo.total - prevCpuInfo.total;
+    
+    prevCpuInfo = currentCpuInfo;
+    
+    if (totalDiff === 0) return "0.0";
+    const load = 100 - (100 * idleDiff / totalDiff);
+    return Math.max(0, Math.min(100, load)).toFixed(1);
+}
+
+// Windows Network Statistics Parser via netstat
+let prevNetTime = Date.now();
+let prevBytesRecv = 0;
+let prevBytesSent = 0;
+
+async function getWindowsNetworkStats() {
+    try {
+        const { stdout } = await execFilePromise('netstat', ['-e']);
+        const lines = stdout.split('\n');
+        for (const line of lines) {
+            if (line.toLowerCase().includes('bytes')) {
+                const numbers = line.trim().match(/\d+/g);
+                if (numbers && numbers.length >= 2) {
+                    const bytesRecv = parseInt(numbers[0], 10);
+                    const bytesSent = parseInt(numbers[1], 10);
+                    const now = Date.now();
+                    const timeDiffSec = (now - prevNetTime) / 1000;
+                    
+                    let rxKb = 0.0;
+                    let txKb = 0.0;
+                    if (timeDiffSec > 0 && prevBytesRecv > 0) {
+                        rxKb = ((bytesRecv - prevBytesRecv) / 1024 / timeDiffSec);
+                        txKb = ((bytesSent - prevBytesSent) / 1024 / timeDiffSec);
+                    }
+                    
+                    prevNetTime = now;
+                    prevBytesRecv = bytesRecv;
+                    prevBytesSent = bytesSent;
+                    
+                    return { 
+                        rxKb: Math.max(0, rxKb).toFixed(1), 
+                        txKb: Math.max(0, txKb).toFixed(1) 
+                    };
+                }
+            }
+        }
+    } catch (e) {
+        // Fallback
+    }
+    return { rxKb: "0.0", txKb: "0.0" };
+}
+
 async function getSystemStats() {
     try {
-        const [cpu, mem, graphics, net] = await Promise.all([
-            si.currentLoad(),
-            si.mem(),
-            si.graphics(),
-            si.networkStats()
-        ]);
-
-        const cpuLoad = cpu.currentLoad.toFixed(1);
-        const memUsed = ((mem.active / mem.total) * 100).toFixed(1);
+        const cpuLoad = getCpuLoad();
         
-        // GPU
-        let gpuLoad = 0;
-        let gpuName = 'N/A';
-        if (graphics.controllers && graphics.controllers.length > 0) {
-            const g = graphics.controllers[0];
-            gpuName = (g.model || 'GPU').substring(0, 20);
-            gpuLoad = g.utilizationGpu || 0;
+        // RAM
+        const totalMem = os.totalmem();
+        const freeMem = os.freemem();
+        const memUsed = (((totalMem - freeMem) / totalMem) * 100).toFixed(1);
+        
+        // GPU (not used in frontend UI)
+        const gpuLoad = 0;
+        const gpuName = 'N/A';
+        
+        // Network
+        let rxKb = "0.0";
+        let txKb = "0.0";
+        
+        if (process.platform === 'win32') {
+            const net = await getWindowsNetworkStats();
+            rxKb = net.rxKb;
+            txKb = net.txKb;
+        } else {
+            try {
+                const net = await si.networkStats();
+                if (net && net.length > 0) {
+                    rxKb = ((net[0].rx_sec || 0) / 1024).toFixed(1);
+                    txKb = ((net[0].tx_sec || 0) / 1024).toFixed(1);
+                }
+            } catch (e) {}
         }
-
-        // Network RX/TX in KB/s
-        let rxKb = 0, txKb = 0;
-        if (net && net.length > 0) {
-            rxKb = ((net[0].rx_sec || 0) / 1024).toFixed(1);
-            txKb = ((net[0].tx_sec || 0) / 1024).toFixed(1);
-        }
-
+        
         return { cpuLoad, memUsed, gpuLoad, gpuName, rxKb, txKb };
     } catch (e) {
-        return { cpuLoad: 0, memUsed: 0, gpuLoad: 0, gpuName: 'N/A', rxKb: 0, txKb: 0 };
+        return { cpuLoad: "0.0", memUsed: "0.0", gpuLoad: 0, gpuName: 'N/A', rxKb: "0.0", txKb: "0.0" };
     }
 }
 
-// Emit system stats every 2 seconds to all connected clients
-setInterval(async () => {
-    const stats = await getSystemStats();
-    io.emit('sys-stats', stats);
-    io.emit('active-bots', getActiveBots());
-}, 2000);
+// Emit system stats every 3 seconds to all connected clients (only if clients are connected)
+async function sysStatsLoop() {
+    try {
+        if (io.engine.clientsCount > 0) {
+            const stats = await getSystemStats();
+            io.emit('sys-stats', stats);
+        }
+        // Always emit active bots (extremely fast in-memory query)
+        io.emit('active-bots', getActiveBots());
+    } catch (err) {
+        // ignore errors to keep loop alive
+    } finally {
+        setTimeout(sysStatsLoop, 3000);
+    }
+}
+sysStatsLoop();
 
 
 io.on('connection', (socket) => {

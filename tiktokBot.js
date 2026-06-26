@@ -123,6 +123,17 @@ export async function runTikTokBot(config, callbacks) {
             let account = null;
             let sessionPath = null;
 
+            const tabDelayMs = (config.tabDelay || 5) * 1000;
+            const delayMs = index * tabDelayMs;
+            if (delayMs > 0) {
+                log(`[${botId}] ⏳ Menunggu jeda ${(config.tabDelay || 5) * index} detik sebelum membuka tab...`);
+                let waited = 0;
+                while (waited < delayMs && !isAborted) {
+                    await new Promise(r => setTimeout(r, Math.min(1000, delayMs - waited)));
+                    waited += 1000;
+                }
+            }
+
             try {
                 let contextOptions = { ignoreHTTPSErrors: true };
                 

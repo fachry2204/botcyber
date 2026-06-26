@@ -58,6 +58,9 @@ async function runBot() {
     const promises = proxies.map(async (proxyConfig, index) => {
         const botId = `Bot-${index + 1}`;
         try {
+            console.log(`[${botId}] ⏳ Menunggu jeda ${index * 5} detik sebelum memulai...`);
+            await new Promise(resolve => setTimeout(resolve, index * 5000));
+
             console.log(`[${botId}] Memulai dengan proxy: ${proxyConfig ? proxyConfig.server : 'Tanpa Proxy'}`);
             
             // Membuat konteks browser yang terisolasi. Cookie, cache, proxy terpisah dari yang lain.
