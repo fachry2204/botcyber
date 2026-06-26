@@ -176,40 +176,106 @@ async function waitDuration(page, durationMs, botId, log) {
         // --- HUMAN SCROLLING BEHAVIOR ---
         if (elapsed >= nextScrollTime && !isAborted) {
             try {
-                // Scroll random distance between 200px and 700px
-                const scrollAmount = Math.floor(Math.random() * 500) + 200;
-                // 25% kemungkinan scroll ke atas, 75% kemungkinan scroll ke bawah
-                const direction = Math.random() < 0.25 ? -1 : 1;
+                // Simulasikan aktivitas baca komentar / scroll rekomendasi
+                const scrollDownAmount = Math.floor(Math.random() * 800) + 300; 
 
-                await page.evaluate((args) => {
-                    window.scrollBy({ top: args.amount * args.direction, left: 0, behavior: 'smooth' });
-                }, { amount: scrollAmount, direction: direction });
+                // 1. Scroll ke bawah
+                await page.evaluate((amount) => {
+                    window.scrollBy({ top: amount, left: 0, behavior: 'smooth' });
+                }, scrollDownAmount);
 
-                // 15% kemungkinan scroll kembali ke paling atas (fokus ke video)
-                if (Math.random() < 0.15) {
-                    setTimeout(() => {
-                        if (!isAborted) {
-                            page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' })).catch(() => { });
-                        }
-                    }, 3000 + Math.random() * 2000); // Jeda 3-5 detik sebelum kembali ke atas
+                // 2. Baca-baca sebentar (jeda 2 sampai 6 detik), lalu scroll kembali ke atas (ke video)
+                const readDelay = Math.floor(Math.random() * 4000) + 2000;
+                setTimeout(() => {
+                    if (!isAborted) {
+                        page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' })).catch(() => { });
+                    }
+                }, readDelay);
+                
+                // Tambahan: Sesekali gerakkan mouse secara acak agar lebih natural
+                if (Math.random() < 0.5) {
+                    const randomX = Math.floor(Math.random() * 800);
+                    const randomY = Math.floor(Math.random() * 600);
+                    page.mouse.move(randomX, randomY).catch(() => {});
                 }
+
             } catch (e) {
                 // Abaikan error jika halaman tertutup
             }
 
-            // Jadwalkan waktu scroll berikutnya (antara 8 sampai 25 detik ke depan)
-            nextScrollTime = elapsed + (Math.floor(Math.random() * 17000) + 8000);
+            // Jadwalkan waktu scroll berikutnya (antara 10 sampai 25 detik ke depan)
+            nextScrollTime = elapsed + (Math.floor(Math.random() * 15000) + 10000);
         }
 
         // Terus pantau secara berkala apakah muncul error/login screen di tengah jalan
         if (elapsed % 2000 === 0) {
+            // Dismiss "Continue watching?" dialog, skip ads, & force play if paused
+            try {
+                await page.evaluate(() => {
+                    // 1. Auto Skip Iklan YouTube (Skip Ad)
+                    const skipBtns = document.querySelectorAll('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
+                    for (let btn of skipBtns) {
+                        if (btn.offsetWidth > 0 || btn.offsetHeight > 0) {
+                            btn.click();
+                        }
+                    }
+
+                    // 2. Tutup Banner Iklan Overlay yang muncul di tengah bawah video
+                    const overlayCloseBtns = document.querySelectorAll('.ytp-ad-overlay-close-button');
+                    for (let btn of overlayCloseBtns) {
+                        if (btn.offsetWidth > 0 || btn.offsetHeight > 0) {
+                            btn.click();
+                        }
+                    }
+
+                    // 3. Dismiss dialog "Video paused. Continue watching?"
+                    const dialogText = document.body.innerText.toLowerCase();
+                    if (dialogText.includes('video paused') || dialogText.includes('continue watching')) {
+                        const btns = document.querySelectorAll('yt-button-renderer[dialog-action="confirm"] button, #confirm-button button, .yt-confirm-dialog-renderer button');
+                        for (let btn of btns) {
+                            if (btn.offsetWidth > 0 || btn.offsetHeight > 0) {
+                                btn.click();
+                            }
+                        }
+                    }
+                    
+                    // 4. Paksa putar video jika ter-pause secara tak terduga
+                    const vid = document.querySelector('video');
+                    const errorEl = document.querySelector('.ytp-error');
+                    const hasError = errorEl && errorEl.offsetWidth > 0 && errorEl.style.display !== 'none';
+                    
+                    if (vid && vid.paused && !vid.ended && !hasError) {
+                        vid.play().catch(()=>{});
+                    }
+                });
+            } catch (e) {}
+
             try {
                 await checkYouTubeBlock(page);
             } catch (err) {
                 if (err.message.includes('Something went wrong') && refreshCount < 3) {
-                    log(`[${botId}] ⚠️ Terdeteksi error pemutaran video pada detik ${elapsed / 1000}. Melakukan auto-refresh halaman...`);
                     refreshCount++;
-                    await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => { });
+                    
+                    // Coba dapatkan waktu terakhir sebelum refresh
+                    let lastTime = 0;
+                    try {
+                        lastTime = await page.evaluate(() => {
+                            const vid = document.querySelector('video');
+                            return vid ? Math.floor(vid.currentTime) : 0;
+                        });
+                    } catch (e) {}
+                    
+                    log(`[${botId}] ⚠️ Terdeteksi error pemutaran video pada menit ${Math.floor(lastTime/60)}:${lastTime%60} (detik ke-${lastTime}). Melakukan auto-refresh halaman untuk melanjutkan...`);
+                    
+                    const currentUrl = page.url();
+                    try {
+                        const urlObj = new URL(currentUrl);
+                        urlObj.searchParams.set('t', lastTime + 's');
+                        await page.goto(urlObj.toString(), { waitUntil: 'domcontentloaded' }).catch(() => { });
+                    } catch(e) {
+                        await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => { });
+                    }
+                    
                     await autoPlay(page, botId, log); // Coba play lagi setelah refresh
                 } else {
                     throw err; // Lempar ke atas jika error lain atau sudah sering di-refresh

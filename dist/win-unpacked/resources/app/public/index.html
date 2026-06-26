@@ -45,7 +45,7 @@
         <div class="flex-1"></div>
         <span
             class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-500 text-center flex-1">
-            Bot Cyber Pro
+            CyberBot Pro 2026
         </span>
         <div class="flex-1 flex justify-end items-center gap-2">
             <span id="appVersionDisplay"
@@ -1283,7 +1283,9 @@
         const updateProgress = document.getElementById('updateProgress');
         const btnInstallUpdate = document.getElementById('btnInstallUpdate');
 
+        let currentVersion = '1.0.0';
         socket.on('app-version', (ver) => {
+            currentVersion = ver;
             if (appVersionDisplay) appVersionDisplay.innerText = 'v' + ver;
             // Setiap kali tersambung, coba cek update
             socket.emit('check-update');
@@ -1293,6 +1295,7 @@
             if (msg.status === 'available') {
                 btnUpdateApp.classList.remove('hidden');
                 btnUpdateApp.innerText = 'Update ke v' + msg.version;
+                if (appVersionDisplay) appVersionDisplay.innerText = 'v' + currentVersion + ' ➔ v' + msg.version;
             } else if (msg.status === 'progress') {
                 btnUpdateApp.classList.add('hidden');
                 updateProgress.classList.remove('hidden');
@@ -1303,7 +1306,8 @@
             } else if (msg.status === 'error') {
                 updateProgress.classList.add('hidden');
                 btnUpdateApp.classList.remove('hidden');
-                btnUpdateApp.innerText = 'Update Gagal - Coba Lagi';
+                btnUpdateApp.innerText = 'Update Gagal (Arahkan Mouse Kesini)';
+                btnUpdateApp.title = msg.message; // Menampilkan pesan error saat kursor diarahkan
                 console.error("OTA Error:", msg.message);
             }
         });
