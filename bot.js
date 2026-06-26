@@ -331,13 +331,10 @@ async function autoPlay(page, botId, log) {
     }).catch(() => true);
 
     if (isPaused) {
-        // Coba Play via JS
-        await page.evaluate(() => {
-            const video = document.querySelector('video');
-            if (video && video.paused) {
-                video.play().catch(() => { });
-            }
-        }).catch(() => { });
+        // Coba Play menggunakan Native Keyboard Shortcut ('k' = play/pause)
+        // Dilarang keras menggunakan JS video.play() karena akan ditandai sebagai Bot oleh YouTube BotGuard!
+        await page.keyboard.press('k').catch(() => { });
+        await page.waitForTimeout(500);
 
         // Coba klik tombol Play fisik raksasa (Hanya muncul jika diam)
         const playBtn = page.locator('.ytp-large-play-button').first();
