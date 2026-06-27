@@ -1,6 +1,7 @@
 directories:
   output: dist
   buildResources: build
+artifactName: botcyber-Setup-${version}.${ext}
 publish:
   - provider: github
     owner: fachry2204

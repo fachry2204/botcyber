@@ -32,6 +32,7 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
+    "artifactName": "botcyber-Setup-${version}.${ext}",
     "publish": [
       {
         "provider": "github",
