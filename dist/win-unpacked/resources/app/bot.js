@@ -168,6 +168,7 @@ async function waitDuration(page, durationMs, botId, log) {
 
     // Jadwalkan waktu scroll pertama (antara 5 sampai 15 detik setelah video mulai)
     let nextScrollTime = Math.floor(Math.random() * 10000) + 5000;
+    let lastKnownTime = 0;
 
     while (elapsed < durationMs && !isAborted) {
         await page.waitForTimeout(Math.min(interval, durationMs - elapsed)).catch(() => { });
@@ -176,28 +177,31 @@ async function waitDuration(page, durationMs, botId, log) {
         // --- HUMAN SCROLLING BEHAVIOR ---
         if (elapsed >= nextScrollTime && !isAborted) {
             try {
-                // Simulasikan aktivitas baca komentar / scroll rekomendasi
+                // Simulasikan aktivitas baca komentar / scroll rekomendasi dengan Native Events
                 const scrollDownAmount = Math.floor(Math.random() * 800) + 300; 
 
-                // 1. Scroll ke bawah
-                await page.evaluate((amount) => {
-                    window.scrollBy({ top: amount, left: 0, behavior: 'smooth' });
-                }, scrollDownAmount);
+                // 1. Scroll ke bawah menggunakan Trusted Mouse Wheel
+                await page.mouse.wheel(0, scrollDownAmount).catch(() => {});
 
-                // 2. Baca-baca sebentar (jeda 2 sampai 6 detik), lalu scroll kembali ke atas (ke video)
-                const readDelay = Math.floor(Math.random() * 4000) + 2000;
-                setTimeout(() => {
-                    if (!isAborted) {
-                        page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' })).catch(() => { });
-                    }
-                }, readDelay);
-                
-                // Tambahan: Sesekali gerakkan mouse secara acak agar lebih natural
-                if (Math.random() < 0.5) {
-                    const randomX = Math.floor(Math.random() * 800);
-                    const randomY = Math.floor(Math.random() * 600);
-                    page.mouse.move(randomX, randomY).catch(() => {});
-                }
+                // 2. Gerakkan mouse secara natural (Bezier curve/steps)
+                const randomX = Math.floor(Math.random() * 800) + 50;
+                const randomY = Math.floor(Math.random() * 600) + 50;
+                await page.mouse.move(randomX, randomY, { steps: 10 }).catch(() => {});
+
+                // 3. Baca-baca sebentar, lalu scroll kembali ke atas (Asynchronous)
+                (async () => {
+                    try {
+                        const readDelay = Math.floor(Math.random() * 4000) + 2000;
+                        await page.waitForTimeout(readDelay);
+                        if (!isAborted) {
+                            // Scroll balik ke atas
+                            await page.mouse.wheel(0, -scrollDownAmount).catch(() => {});
+                            // Gerakkan mouse kembali ke area video (tengah atas layar)
+                            const winSize = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight })).catch(()=>({w:800,h:600}));
+                            await page.mouse.move(winSize.w / 2, winSize.h / 3, { steps: 15 }).catch(() => {});
+                        }
+                    } catch(e) {}
+                })();
 
             } catch (e) {
                 // Abaikan error jika halaman tertutup
@@ -209,9 +213,18 @@ async function waitDuration(page, durationMs, botId, log) {
 
         // Terus pantau secara berkala apakah muncul error/login screen di tengah jalan
         if (elapsed % 2000 === 0) {
+            // Track time continuously so we know the exact second if it crashes
+            try {
+                const ct = await page.evaluate(() => {
+                    const vid = document.querySelector('video');
+                    return vid && !vid.paused ? Math.floor(vid.currentTime) : -1;
+                });
+                if (ct > 0) lastKnownTime = ct;
+            } catch(e) {}
+
             // Dismiss "Continue watching?" dialog, skip ads, & force play if paused
             try {
-                await page.evaluate(() => {
+                const needsForcePlay = await page.evaluate(() => {
                     // 1. Auto Skip Iklan YouTube (Skip Ad)
                     const skipBtns = document.querySelectorAll('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
                     for (let btn of skipBtns) {
@@ -239,15 +252,20 @@ async function waitDuration(page, durationMs, botId, log) {
                         }
                     }
                     
-                    // 4. Paksa putar video jika ter-pause secara tak terduga
+                    // 4. Paksa putar video jika ter-pause secara tak terduga (Tanpa memanggil vid.play() langsung karena terdeteksi bot)
                     const vid = document.querySelector('video');
                     const errorEl = document.querySelector('.ytp-error');
                     const hasError = errorEl && errorEl.offsetWidth > 0 && errorEl.style.display !== 'none';
                     
                     if (vid && vid.paused && !vid.ended && !hasError) {
-                        vid.play().catch(()=>{});
+                        return true;
                     }
+                    return false;
                 });
+                
+                if (needsForcePlay) {
+                    await page.keyboard.press('k').catch(()=>{}); // Native keyboard shortcut for Play/Pause in YouTube
+                }
             } catch (e) {}
 
             try {
@@ -256,15 +274,8 @@ async function waitDuration(page, durationMs, botId, log) {
                 if (err.message.includes('Something went wrong') && refreshCount < 3) {
                     refreshCount++;
                     
-                    // Coba dapatkan waktu terakhir sebelum refresh
-                    let lastTime = 0;
-                    try {
-                        lastTime = await page.evaluate(() => {
-                            const vid = document.querySelector('video');
-                            return vid ? Math.floor(vid.currentTime) : 0;
-                        });
-                    } catch (e) {}
-                    
+                    // Gunakan waktu terakhir yang tercatat sebelum crash
+                    let lastTime = lastKnownTime;
                     log(`[${botId}] ⚠️ Terdeteksi error pemutaran video pada menit ${Math.floor(lastTime/60)}:${lastTime%60} (detik ke-${lastTime}). Melakukan auto-refresh halaman untuk melanjutkan...`);
                     
                     const currentUrl = page.url();
@@ -320,13 +331,10 @@ async function autoPlay(page, botId, log) {
     }).catch(() => true);
 
     if (isPaused) {
-        // Coba Play via JS
-        await page.evaluate(() => {
-            const video = document.querySelector('video');
-            if (video && video.paused) {
-                video.play().catch(() => { });
-            }
-        }).catch(() => { });
+        // Coba Play menggunakan Native Keyboard Shortcut ('k' = play/pause)
+        // Dilarang keras menggunakan JS video.play() karena akan ditandai sebagai Bot oleh YouTube BotGuard!
+        await page.keyboard.press('k').catch(() => { });
+        await page.waitForTimeout(500);
 
         // Coba klik tombol Play fisik raksasa (Hanya muncul jika diam)
         const playBtn = page.locator('.ytp-large-play-button').first();
@@ -340,7 +348,7 @@ async function autoPlay(page, botId, log) {
 export async function runBot(config, callbacks) {
     isAborted = false;
     const { log, onSuccess, onFailed, onVideoPlay, onVideoSuccess, onVideoFail, onUaUsed } = callbacks;
-    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, useVpn, isLooping, loopCount } = config;
+    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount } = config;
     const tabDelayMs = (tabDelay || 5) * 1000;
 
     let allProxies = getProxies(proxyFile);
@@ -409,14 +417,17 @@ export async function runBot(config, callbacks) {
         }
     }
 
+    const browserVer = currentBrowser.version();
+    const majorVer = browserVer.split('.')[0] || '124';
+    
     const mode = userAgentMode || 'all';
     const customDesktopDevices = {
         'Macbook (Safari)': { ...devices['Desktop Safari'], userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15' },
-        'Macbook (Chrome)': { ...devices['Desktop Chrome'], userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' },
-        'Linux (Chrome)': { ...devices['Desktop Chrome'], userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' },
+        'Macbook (Chrome)': { ...devices['Desktop Chrome'], userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${majorVer}.0.0.0 Safari/537.36` },
+        'Linux (Chrome)': { ...devices['Desktop Chrome'], userAgent: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${majorVer}.0.0.0 Safari/537.36` },
         'Linux (Firefox)': { ...devices['Desktop Firefox'], userAgent: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0' },
-        'Windows (Chrome)': devices['Desktop Chrome'],
-        'Windows (Edge)': devices['Desktop Edge']
+        'Windows (Chrome)': { ...devices['Desktop Chrome'], userAgent: devices['Desktop Chrome'].userAgent.replace(/Chrome\/\d+/, `Chrome/${majorVer}`) },
+        'Windows (Edge)': { ...devices['Desktop Edge'], userAgent: devices['Desktop Edge'].userAgent.replace(/Edg\/\d+/, `Edg/${majorVer}`).replace(/Chrome\/\d+/, `Chrome/${majorVer}`) }
     };
     const validDesktop = Object.keys(customDesktopDevices);
     const mobileDevices = [
@@ -438,7 +449,10 @@ export async function runBot(config, callbacks) {
     function getDeviceProfile() {
         const devName = devicePool[Math.floor(Math.random() * devicePool.length)];
         const isMob = validMobile.includes(devName);
-        const devProfile = isMob ? devices[devName] : customDesktopDevices[devName];
+        let devProfile = isMob ? { ...devices[devName] } : { ...customDesktopDevices[devName] };
+        if (devProfile.userAgent && devProfile.userAgent.includes('Chrome/')) {
+            devProfile.userAgent = devProfile.userAgent.replace(/Chrome\/\d+/, `Chrome/${majorVer}`);
+        }
         const pStr = devName.includes('iPhone') ? 'iPhone' 
                    : devName.includes('Macbook') ? 'MacIntel' 
                    : devName.includes('Linux') ? 'Linux x86_64' 
@@ -470,30 +484,15 @@ export async function runBot(config, callbacks) {
             await new Promise(r => setTimeout(r, 5000));
         }
 
-        for (let i = 0; i < proxyQueue.length;) {
-            if (isAborted) break;
-
-        let batchProxies = [];
-        let step = 1;
-
-        if (ipMode === 'same') {
-            const currentProxy = proxyQueue[i];
-            batchProxies = Array.from({ length: browserCount }).map(() => currentProxy);
-            step = 1;
-        } else {
-            batchProxies = proxyQueue.slice(i, i + browserCount);
-            step = browserCount;
-        }
-
         log(`<br><span class="text-blue-400 font-bold">=================================================</span>`);
         const titleMode = ipMode === 'same' ? 'IP Sama' : 'IP Berbeda-beda';
-        log(`<span class="text-blue-400 font-bold">🔄 BATCH BARU | Membuka ${batchProxies.length} Browser Serentak (${titleMode})</span>`);
+        log(`<span class="text-blue-400 font-bold">🔄 WORKER POOL | Menjalankan ${browserCount} Worker Konstan (${titleMode})</span>`);
         log(`<span class="text-blue-400 font-bold">=================================================</span><br>`);
 
-        const promises = batchProxies.map(async (proxyConfig, index) => {
+        // Helper untuk menjalankan 1 instance bot
+        async function runSingleBot(proxyConfig, globalIndex, workerIndex, delayIndex) {
             if (isAborted) return;
-            // Jika IP Sama, index proxy dalam log bisa sama, jadi tambahkan botId berbasis index inner loop
-            const botId = ipMode === 'same' ? `Bot-${index + 1}` : `Bot-${i + index + 1}`;
+            const botId = ipMode === 'same' ? `Bot-${workerIndex}` : `Bot-${globalIndex + 1}`;
             let context = null;
             let proxyTimezone = null;
 
@@ -516,9 +515,9 @@ export async function runBot(config, callbacks) {
             }
 
             // Jeda antar tab agar koneksi tidak bentrok secara bersamaan
-            const delayMs = index * tabDelayMs;
+            const delayMs = delayIndex * tabDelayMs;
             if (delayMs > 0) {
-                log(`[${botId}] ⏳ Menunggu jeda ${tabDelay * index} detik sebelum membuka tab...`);
+                log(`[${botId}] ⏳ Menunggu jeda ${tabDelay * delayIndex} detik sebelum membuka tab...`);
                 let waited = 0;
                 while (waited < delayMs && !isAborted) {
                     await new Promise(r => setTimeout(r, Math.min(1000, delayMs - waited)));
@@ -547,7 +546,7 @@ export async function runBot(config, callbacks) {
                     'sec-ch-ua-platform': `"${osName}"`,
                     'sec-ch-ua-platform-version': `"${osVersion}"`,
                     'sec-ch-ua-mobile': isMobileProfile ? '?1' : '?0',
-                    'sec-ch-ua': isMobileProfile ? '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"' : '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
+                    'sec-ch-ua': `\"Chromium\";v=\"${majorVer}\", \"Google Chrome\";v=\"${majorVer}\", \"Not-A.Brand\";v=\"99\"`
                 };
 
                 log(`[${botId}] 🕵️ User Agent: ${deviceProfile.userAgent}`);
@@ -706,6 +705,20 @@ export async function runBot(config, callbacks) {
                             }
                             window.scrollTo(0, 0);
                         });
+                    } else if (trafficSource === 'external') {
+                        log(`[${botId}] 🌐 Membuka link external: ${externalUrl}`);
+                        await page.goto(externalUrl);
+                        await page.waitForLoadState('domcontentloaded').catch(() => { });
+                        
+                        log(`[${botId}] ⏳ Menunggu pengalihan (redirect) ke YouTube...`);
+                        let waitRedirect = 0;
+                        while(waitRedirect < 20000 && !isAborted) {
+                            if(page.url().includes('youtube.com')) {
+                                break;
+                            }
+                            await page.waitForTimeout(1000).catch(() => {});
+                            waitRedirect += 1000;
+                        }
                     } else {
                         await page.goto(videoUrl);
                     }
@@ -766,9 +779,12 @@ export async function runBot(config, callbacks) {
                         log(`[${botId}] ✅ Berhasil memproses ${playedCount} video embed.`);
                     }
 
-                    let currentWatchDuration = watchDurationMin || 120;
-                    if (watchDurationMax > watchDurationMin) {
-                        currentWatchDuration = Math.floor(Math.random() * (watchDurationMax - watchDurationMin + 1)) + watchDurationMin;
+                    const parsedMin = parseInt(watchDurationMin, 10) || 120;
+                    const parsedMax = parseInt(watchDurationMax, 10) || parsedMin;
+                    
+                    let currentWatchDuration = parsedMin;
+                    if (parsedMax > parsedMin) {
+                        currentWatchDuration = Math.floor(Math.random() * (parsedMax - parsedMin + 1)) + parsedMin;
                     }
                     log(`[${botId}] Nonton Target: ${currentWatchDuration} detik...`);
                     await waitDuration(page, currentWatchDuration * 1000, botId, log);
@@ -833,16 +849,37 @@ export async function runBot(config, callbacks) {
                     }
                 }
             } // end of if (!isAborted)
-        });
+        } // end of runSingleBot
 
-        await Promise.all(promises);
-
-        if (isAborted) {
-            break;
+        if (ipMode === 'same') {
+            for (let i = 0; i < proxyQueue.length; i++) {
+                if (isAborted) break;
+                const currentProxy = proxyQueue[i];
+                
+                const workers = Array.from({ length: browserCount }).map((_, wIdx) => {
+                    return runSingleBot(currentProxy, i, wIdx + 1, wIdx);
+                });
+                await Promise.allSettled(workers);
+            }
+        } else {
+            let queueIndex = 0;
+            const totalProxies = proxyQueue.length;
+            
+            const workers = Array.from({ length: browserCount }).map(async (_, wIdx) => {
+                let firstRun = true;
+                while (queueIndex < totalProxies && !isAborted) {
+                    const i = queueIndex++;
+                    const currentProxy = proxyQueue[i];
+                    
+                    // Delay only for the first batch of workers to avoid crashing on start
+                    const delayIdx = firstRun ? wIdx : 0;
+                    firstRun = false;
+                    
+                    await runSingleBot(currentProxy, i, wIdx + 1, delayIdx);
+                }
+            });
+            await Promise.allSettled(workers);
         }
-
-        i += step;
-    }
     } // end of while(currentLoop < maxLoop)
 
     if (isAborted) {

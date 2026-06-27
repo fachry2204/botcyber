@@ -171,6 +171,7 @@
                             <option value="direct">Direct (Buka URL Video Langsung)</option>
                             <option value="search">Pencarian (Cari Kata Kunci ➔ Klik ID Video)</option>
                             <option value="embed">Via web lain (Embed Auto Play)</option>
+                            <option value="external">External Link (Shortlink/Redirect ke Video)</option>
                         </select>
                     </div>
 
@@ -205,6 +206,15 @@
                                 class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-sm">
                             <p class="text-xs text-gray-500 italic mt-1">Bot akan mengunjungi website ini. Pastikan
                                 website sudah memiliki script auto-play untuk video YouTube-nya.</p>
+                        </div>
+                    </div>
+
+                    <div id="externalInputGroup" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 text-gray-300">Tahap 2: Link External (Contoh: bit.ly)</label>
+                            <input type="url" id="externalUrl" placeholder="https://bit.ly/..."
+                                class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-sm">
+                            <p class="text-xs text-gray-500 italic mt-1">Bot akan mengunjungi link ini dan menunggu dialihkan (redirect) langsung ke video YouTube.</p>
                         </div>
                     </div>
 
@@ -530,7 +540,7 @@
     <script>
 
         // POLYFILL TO PREVENT JS CRASHES ON MISSING ELEMENTS (TARGETED)
-        const idsToMock = ['logs', 'successLogs', 'failedLogs', 'botForm', 'startBtn', 'stopBtn', 'clearDataBtn', 'statusBadge', 'tabLogs', 'tabSuccess', 'tabFailed', 'viewBot', 'viewFinder', 'viewMirror', 'menuBot', 'menuFinder', 'menuMirror', 'finderForm', 'btnFind', 'btnStopFind', 'btnDownload', 'finderLogs', 'goodProxyCount', 'finderStatus', 'menuTikTok', 'formYoutubeContainer', 'formTikTokContainer', 'mainTitle', 'trafficSource', 'directInputGroup', 'searchInputGroup', 'embedInputGroup', 'ttMode', 'ttLiveGroup', 'ttUploadGroup', 'ttPhonefarmGroup', 'ttUaGroup', 'ttPfDeviceId', 'adbStatusText', 'refreshAdbBtn', 'tabAll', 'tabActiveBots', 'allLogs', 'activeBotsLogs', 'statVideoTotal', 'statVideoSuccess', 'statVideoFailed', 'screenshotModal', 'closeScreenshotBtn', 'screenshotImg', 'screenshotTitle', 'screenshotLoading', 'btnScanMirror', 'mirrorGrid', 'checkSyncAll', 'searchMirror', 'zoomSliderMirror', 'statUaTotal', 'statUaDesktop', 'statUaMobile', 'sysUaTotalBar', 'sysUaDesktopBar', 'sysUaMobileBar', 'cpuVal', 'cpuBar', 'ramVal', 'ramBar', 'netRx', 'netTx', 'proxySource', 'proxyFile', 'ttProxySource', 'ttProxyFile', 'tabFinder', 'tabChecker', 'finderFormContainer', 'checkerFormContainer', 'checkerForm', 'checkProxyList', 'proxyType', 'findCountry', 'findCount', 'repeatBot', 'repeatBotOptions', 'checkWhoer', 'recoUrl', 'recoDuration', 'embedWebUrl', 'videoUrl', 'searchKeyword', 'searchVideoId', 'headlessMode', 'browserCount', 'watchDurationMin', 'watchDurationMax', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'tiktokForm', 'ttStartBtn', 'ttStopBtn', 'ttFilePath', 'ttPfFilePath', 'ttLiveUrl', 'ttLike', 'ttShare', 'ttTap', 'ttTapCount', 'ttSong', 'ttCaption', 'ttPfSong', 'ttPfCaption', 'ttUserAgentMode', 'ttAccountFile', 'ttHeadless', 'ttBrowserCount'];
+        const idsToMock = ['logs', 'successLogs', 'failedLogs', 'botForm', 'startBtn', 'stopBtn', 'clearDataBtn', 'statusBadge', 'tabLogs', 'tabSuccess', 'tabFailed', 'viewBot', 'viewFinder', 'viewMirror', 'menuBot', 'menuFinder', 'menuMirror', 'finderForm', 'btnFind', 'btnStopFind', 'btnDownload', 'finderLogs', 'goodProxyCount', 'finderStatus', 'menuTikTok', 'formYoutubeContainer', 'formTikTokContainer', 'mainTitle', 'trafficSource', 'directInputGroup', 'searchInputGroup', 'embedInputGroup', 'externalInputGroup', 'ttMode', 'ttLiveGroup', 'ttUploadGroup', 'ttPhonefarmGroup', 'ttUaGroup', 'ttPfDeviceId', 'adbStatusText', 'refreshAdbBtn', 'tabAll', 'tabActiveBots', 'allLogs', 'activeBotsLogs', 'statVideoTotal', 'statVideoSuccess', 'statVideoFailed', 'screenshotModal', 'closeScreenshotBtn', 'screenshotImg', 'screenshotTitle', 'screenshotLoading', 'btnScanMirror', 'mirrorGrid', 'checkSyncAll', 'searchMirror', 'zoomSliderMirror', 'statUaTotal', 'statUaDesktop', 'statUaMobile', 'sysUaTotalBar', 'sysUaDesktopBar', 'sysUaMobileBar', 'cpuVal', 'cpuBar', 'ramVal', 'ramBar', 'netRx', 'netTx', 'proxySource', 'proxyFile', 'ttProxySource', 'ttProxyFile', 'tabFinder', 'tabChecker', 'finderFormContainer', 'checkerFormContainer', 'checkerForm', 'checkProxyList', 'proxyType', 'findCountry', 'findCount', 'repeatBot', 'repeatBotOptions', 'checkWhoer', 'recoUrl', 'recoDuration', 'embedWebUrl', 'externalUrl', 'videoUrl', 'searchKeyword', 'searchVideoId', 'headlessMode', 'browserCount', 'watchDurationMin', 'watchDurationMax', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'tiktokForm', 'ttStartBtn', 'ttStopBtn', 'ttFilePath', 'ttPfFilePath', 'ttLiveUrl', 'ttLike', 'ttShare', 'ttTap', 'ttTapCount', 'ttSong', 'ttCaption', 'ttPfSong', 'ttPfCaption', 'ttUserAgentMode', 'ttAccountFile', 'ttHeadless', 'ttBrowserCount'];
         const origGetElementById = document.getElementById;
         document.getElementById = function (id) {
             let el = origGetElementById.call(document, id);
@@ -594,7 +604,7 @@
         }
 
         // FITUR: Simpan dan Muat Pengaturan (Local Storage)
-        const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'ipMode', 'uaAssignmentMode', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl', 'useVpn', 'isLooping', 'loopCount'];
+        const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'ipMode', 'uaAssignmentMode', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl', 'externalUrl', 'useVpn', 'isLooping', 'loopCount'];
         const checkboxIds = ['checkWhoer'];
 
         const isLoopingEl = document.getElementById('isLooping');
@@ -641,16 +651,20 @@
         const directInputGroup = document.getElementById('directInputGroup');
         const searchInputGroup = document.getElementById('searchInputGroup');
         const embedInputGroup = document.getElementById('embedInputGroup');
+        const externalInputGroup = document.getElementById('externalInputGroup');
 
         function toggleTrafficUI() {
             directInputGroup.classList.add('hidden');
             searchInputGroup.classList.add('hidden');
             if (embedInputGroup) embedInputGroup.classList.add('hidden');
+            if (externalInputGroup) externalInputGroup.classList.add('hidden');
 
             if (trafficSourceEl.value === 'search') {
                 searchInputGroup.classList.remove('hidden');
             } else if (trafficSourceEl.value === 'embed') {
                 if (embedInputGroup) embedInputGroup.classList.remove('hidden');
+            } else if (trafficSourceEl.value === 'external') {
+                if (externalInputGroup) externalInputGroup.classList.remove('hidden');
             } else {
                 directInputGroup.classList.remove('hidden');
             }
@@ -1090,6 +1104,7 @@
                 recoDuration: parseInt(document.getElementById('recoDuration').value),
                 trafficSource: document.getElementById('trafficSource').value,
                 embedWebUrl: document.getElementById('embedWebUrl') ? document.getElementById('embedWebUrl').value : '',
+                externalUrl: document.getElementById('externalUrl') ? document.getElementById('externalUrl').value : '',
                 videoUrl: document.getElementById('videoUrl').value,
                 searchKeyword: document.getElementById('searchKeyword').value,
                 searchVideoId: document.getElementById('searchVideoId').value,
