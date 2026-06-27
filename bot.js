@@ -348,7 +348,7 @@ async function autoPlay(page, botId, log) {
 export async function runBot(config, callbacks) {
     isAborted = false;
     const { log, onSuccess, onFailed, onVideoPlay, onVideoSuccess, onVideoFail, onUaUsed } = callbacks;
-    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, useVpn, isLooping, loopCount } = config;
+    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount } = config;
     const tabDelayMs = (tabDelay || 5) * 1000;
 
     let allProxies = getProxies(proxyFile);
@@ -705,6 +705,20 @@ export async function runBot(config, callbacks) {
                             }
                             window.scrollTo(0, 0);
                         });
+                    } else if (trafficSource === 'external') {
+                        log(`[${botId}] 🌐 Membuka link external: ${externalUrl}`);
+                        await page.goto(externalUrl);
+                        await page.waitForLoadState('domcontentloaded').catch(() => { });
+                        
+                        log(`[${botId}] ⏳ Menunggu pengalihan (redirect) ke YouTube...`);
+                        let waitRedirect = 0;
+                        while(waitRedirect < 20000 && !isAborted) {
+                            if(page.url().includes('youtube.com')) {
+                                break;
+                            }
+                            await page.waitForTimeout(1000).catch(() => {});
+                            waitRedirect += 1000;
+                        }
                     } else {
                         await page.goto(videoUrl);
                     }
