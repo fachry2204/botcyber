@@ -137,13 +137,16 @@ async function checkYouTubeBlock(page) {
         // Deteksi error player HANYA jika elemen error overlay BENAR-BENAR TERLIHAT di layar
         // Jangan gunakan innerText karena YouTube selalu embed teks ini di DOM tersembunyi!
         const errorEl = document.querySelector(
-            '.ytp-error, .html5-video-player.ytp-error-overlay, yt-playability-error-supported-renderers'
+            '.ytp-error-content, .html5-video-player.ytp-error-overlay, yt-playability-error-supported-renderers, ytm-playability-error-supported-renderers, .ytm-error-overlay'
         );
         if (errorEl) {
             const style = window.getComputedStyle(errorEl);
             const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && errorEl.offsetHeight > 0;
             if (isVisible) {
-                return 'Error Player: Something went wrong (Video gagal dimuat)';
+                // Pastikan teks benar-benar error yang menghalangi
+                if (errorEl.innerText.toLowerCase().includes('something went wrong') || errorEl.innerText.toLowerCase().includes('unavailable')) {
+                    return 'Error Player: Something went wrong (Video gagal dimuat)';
+                }
             }
         }
 
@@ -161,7 +164,7 @@ async function checkYouTubeBlock(page) {
     }
 }
 
-async function waitDuration(page, durationMs, botId, log) {
+async function waitDuration(page, durationMs, botId, log, config = {}) {
     const interval = 1000;
     let elapsed = 0;
     let refreshCount = 0;
@@ -222,11 +225,87 @@ async function waitDuration(page, durationMs, botId, log) {
                 if (ct > 0) lastKnownTime = ct;
             } catch(e) {}
 
+            // 0. Deteksi dan Interaksi Iklan YouTube
+            try {
+                const hasAd = await page.evaluate(() => {
+                    return document.querySelector('.ytp-ad-player-overlay, .ad-showing, ytm-promoted-sparkles-web-renderer, .ad-container') !== null;
+                });
+                
+                if (hasAd) {
+                    if (!page.adAppearedLogged) {
+                        log(`[${botId}] 📺 Iklan mulai tayang/muncul di layar.`);
+                        page.adAppearedLogged = true; // Flag to prevent spamming the log
+                    }
+
+                    if (config.clickAds && !isAborted && !page.adClickedLogged) {
+                        const adTextSelectors = [
+                            'Visit Advertiser', 'Kunjungi pengiklan', 'Get quote', 'Dapatkan penawaran',
+                            'Order now', 'Pesan sekarang', 'Shop now', 'Beli sekarang',
+                            'Learn more', 'Pelajari selengkapnya', 'Nantikan', 'Buka'
+                        ];
+                        const textLocators = adTextSelectors.map(t => `a:has-text("${t}"), button:has-text("${t}")`).join(', ');
+                        const classLocators = '.ytp-ad-visit-advertiser-button, .ytp-ad-visit-advertiser-info, .ytp-ad-button, .ytp-ad-action-interstitial-action-button, a[aria-label="Visit advertiser"], ytm-promoted-sparkles-web-renderer a, ytm-companion-ad-renderer button';
+                        const adClickBtn = page.locator(`${textLocators}, ${classLocators}`).first();
+                        
+                        if (await adClickBtn.isVisible().catch(() => false)) {
+                            log(`[${botId}] 💰 Iklan YouTube otomatis diklik...`);
+                            page.adClickedLogged = true; // Prevent multiple clicks on the same ad
+                            
+                            try {
+                                const context = page.context();
+                                // Klik normal (tanpa Control) karena YouTube otomatis membuka tab baru (window.open / target=_blank)
+                                const [newPage] = await Promise.all([
+                                    context.waitForEvent('page', { timeout: 10000 }).catch(() => null),
+                                    adClickBtn.click({ force: true }).catch(() => {})
+                                ]);
+                                
+                                if (newPage) {
+                                    await newPage.bringToFront().catch(()=>{});
+                                    log(`[${botId}] 🌐 Tab iklan terbuka. Melakukan scroll atas/bawah selama 10 detik...`);
+                                    await newPage.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(()=>{});
+                                    
+                                    // Scroll atas bawah secara natural selama ~10 detik (10 kali iterasi x 1 detik)
+                                    for(let i = 0; i < 10; i++) {
+                                        if (isAborted) break;
+                                        await newPage.evaluate(() => {
+                                            window.scrollBy(0, Math.random() * 500 + 200);
+                                        }).catch(()=>{});
+                                        await newPage.waitForTimeout(500);
+                                        
+                                        await newPage.evaluate(() => {
+                                            window.scrollBy(0, -(Math.random() * 200 + 100));
+                                        }).catch(()=>{});
+                                        await newPage.waitForTimeout(500);
+                                    }
+                                    
+                                    await newPage.close().catch(()=>{});
+                                    log(`[${botId}] 🔙 Selesai interaksi iklan. Kembali menonton video YouTube.`);
+                                    await page.bringToFront().catch(()=>{});
+                                } else {
+                                    log(`[${botId}] ⚠️ Iklan diklik, tetapi tab baru tidak terdeteksi (mungkin dicegah browser).`);
+                                    await page.waitForTimeout(1500);
+                                }
+                            } catch (err) {
+                                await page.waitForTimeout(1500);
+                            }
+                        }
+                    } else if (!config.clickAds && !page.adSkippedLogged) {
+                        log(`[${botId}] ⏭️ Iklan dibiarkan (Auto Click Ads tidak aktif).`);
+                        page.adSkippedLogged = true;
+                    }
+                } else {
+                    // Reset flags when ad disappears
+                    page.adAppearedLogged = false;
+                    page.adClickedLogged = false;
+                    page.adSkippedLogged = false;
+                }
+            } catch (e) {}
+
             // Dismiss "Continue watching?" dialog, skip ads, & force play if paused
             try {
                 const needsForcePlay = await page.evaluate(() => {
                     // 1. Auto Skip Iklan YouTube (Skip Ad)
-                    const skipBtns = document.querySelectorAll('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
+                    const skipBtns = document.querySelectorAll('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button[class*="skip-ad"], .ytm-custom-ad-action-button');
                     for (let btn of skipBtns) {
                         if (btn.offsetWidth > 0 || btn.offsetHeight > 0) {
                             btn.click();
@@ -306,9 +385,9 @@ async function autoPlay(page, botId, log) {
     let videoTitle = "Video YouTube";
     try {
         videoTitle = await page.evaluate(() => {
-            const titleEl = document.querySelector('h1.title, h2.slim-video-metadata-title, .ytm-media-title, .watch-title, h1 .yt-core-attributed-string');
+            const titleEl = document.querySelector('h1.title, h2.slim-video-metadata-title, .ytm-media-title, .watch-title, h1 .yt-core-attributed-string, yt-formatted-string.title.ytmusic-player-bar');
             if (titleEl) return titleEl.innerText.trim();
-            return document.title.replace(' - YouTube', '').trim();
+            return document.title.replace(' - YouTube', '').replace(' - YouTube Music', '').trim();
         });
     } catch (e) { }
 
@@ -337,7 +416,7 @@ async function autoPlay(page, botId, log) {
         await page.waitForTimeout(500);
 
         // Coba klik tombol Play fisik raksasa (Hanya muncul jika diam)
-        const playBtn = page.locator('.ytp-large-play-button').first();
+        const playBtn = page.locator('.ytp-large-play-button, #play-pause-button').first();
         if (await playBtn.isVisible().catch(() => false)) {
             // Gunakan force true karena terkadang elemen UI bertumpuk (invisible overlay)
             await playBtn.click({ force: true }).catch(() => { });
@@ -348,8 +427,9 @@ async function autoPlay(page, botId, log) {
 export async function runBot(config, callbacks) {
     isAborted = false;
     const { log, onSuccess, onFailed, onVideoPlay, onVideoSuccess, onVideoFail, onUaUsed } = callbacks;
-    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount } = config;
+    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount, targetPlatform, clickAds, useCookies, cookieFileContent } = config;
     const tabDelayMs = (tabDelay || 5) * 1000;
+    const isMusic = targetPlatform === 'music';
 
     let allProxies = getProxies(proxyFile);
 
@@ -621,6 +701,80 @@ export async function runBot(config, callbacks) {
 
                     if (isAborted) throw new Error("Aborted");
 
+                    if (useCookies && cookieFileContent) {
+                        try {
+                            log(`[${botId}] 🍪 Mengunjungi YouTube untuk Bypass Login...`);
+                            await page.goto('https://www.youtube.com/');
+                            await page.waitForTimeout(2000);
+                            const cookieStr = cookieFileContent;
+                            let rawCookies = [];
+                            if (cookieStr.trim().startsWith('{')) {
+                                const parsed = JSON.parse(cookieStr);
+                                if (parsed.cookies && Array.isArray(parsed.cookies)) {
+                                    rawCookies = parsed.cookies;
+                                }
+                            } else if (cookieStr.trim().startsWith('[')) {
+                                rawCookies = JSON.parse(cookieStr);
+                            } else if (cookieStr.includes('Netscape HTTP Cookie File') || cookieStr.includes('\t')) {
+                                const lines = cookieStr.split('\n');
+                                lines.forEach(line => {
+                                    if (line.trim() === '' || line.startsWith('#')) return;
+                                    const parts = line.split('\t');
+                                    if (parts.length >= 7) {
+                                        rawCookies.push({
+                                            domain: parts[0],
+                                            path: parts[2],
+                                            secure: parts[3] === 'TRUE',
+                                            expires: parseInt(parts[4]),
+                                            name: parts[5],
+                                            value: parts[6].trim()
+                                        });
+                                    }
+                                });
+                            }
+                            
+                            let cookiesArr = [];
+                            if (rawCookies.length > 0) {
+                                // Sanitasi ketat hanya ambil properti yang didukung Playwright
+                                cookiesArr = rawCookies.map(c => {
+                                    let domain = c.domain;
+                                    if (domain && domain.includes('google.co.id')) {
+                                        domain = '.google.com';
+                                    }
+                                    
+                                    const cleanCookie = {
+                                        name: c.name,
+                                        value: c.value,
+                                        domain: domain,
+                                        path: c.path || '/',
+                                        expires: c.expires || -1,
+                                        httpOnly: c.httpOnly || false,
+                                        secure: c.secure || false
+                                    };
+                                    
+                                    if (c.sameSite && typeof c.sameSite === 'string') {
+                                        const ss = c.sameSite.toLowerCase();
+                                        if (ss === 'lax') cleanCookie.sameSite = 'Lax';
+                                        else if (ss === 'strict') cleanCookie.sameSite = 'Strict';
+                                        else if (ss === 'none' || ss === 'no_restriction') cleanCookie.sameSite = 'None';
+                                    }
+                                    
+                                    return cleanCookie;
+                                });
+                                await context.addCookies(cookiesArr).catch(e => {
+                                    log(`[${botId}] ⚠️ Error set cookie format: ${e.message}`);
+                                });
+                                await page.reload();
+                                await page.waitForTimeout(3000);
+                                log(`[${botId}] 🍪 Berhasil memuat ${cookiesArr.length} cookies dari file (Bypass Login).`);
+                            } else {
+                                log(`[${botId}] ⚠️ File cookie kosong atau format tidak didukung.`);
+                            }
+                        } catch (err) {
+                            log(`[${botId}] ⚠️ Gagal memuat cookie: ${err.message}`);
+                        }
+                    }
+
                     if (checkWhoer) {
                         log(`[${botId}] 1. Mengecek Whoer.net...`);
                         await page.goto('https://whoer.net/');
@@ -666,13 +820,16 @@ export async function runBot(config, callbacks) {
                         await page.goto(recoUrl);
                         await autoPlay(page, botId, log);
                         log(`[${botId}] Nonton Pancingan: ${recoDuration} detik...`);
-                        await waitDuration(page, recoDuration * 1000, botId, log);
+                        await waitDuration(page, recoDuration * 1000, botId, log, config);
                     }
 
                     log(`[${botId}] 3. Membuka Target Utama...`);
                     if (trafficSource === 'search') {
                         log(`[${botId}] 🔎 Mencari kata kunci: "${searchKeyword}"`);
-                        await page.goto(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchKeyword)}`);
+                        const searchUrl = isMusic 
+                            ? `https://music.youtube.com/search?q=${encodeURIComponent(searchKeyword)}` 
+                            : `https://www.youtube.com/results?search_query=${encodeURIComponent(searchKeyword)}`;
+                        await page.goto(searchUrl);
                         await page.waitForLoadState('domcontentloaded').catch(() => { });
 
                         let found = false;
@@ -710,17 +867,24 @@ export async function runBot(config, callbacks) {
                         await page.goto(externalUrl);
                         await page.waitForLoadState('domcontentloaded').catch(() => { });
                         
-                        log(`[${botId}] ⏳ Menunggu pengalihan (redirect) ke YouTube...`);
+                        log(`[${botId}] ⏳ Menunggu pengalihan (redirect) ke target...`);
                         let waitRedirect = 0;
                         while(waitRedirect < 20000 && !isAborted) {
-                            if(page.url().includes('youtube.com')) {
+                            if(page.url().includes(isMusic ? 'music.youtube.com' : 'youtube.com')) {
                                 break;
                             }
                             await page.waitForTimeout(1000).catch(() => {});
                             waitRedirect += 1000;
                         }
                     } else {
-                        await page.goto(videoUrl);
+                        // Modify URL if platform doesn't match
+                        let finalVideoUrl = videoUrl;
+                        if (isMusic && finalVideoUrl.includes('www.youtube.com')) {
+                            finalVideoUrl = finalVideoUrl.replace('www.youtube.com', 'music.youtube.com');
+                        } else if (!isMusic && finalVideoUrl.includes('music.youtube.com')) {
+                            finalVideoUrl = finalVideoUrl.replace('music.youtube.com', 'www.youtube.com');
+                        }
+                        await page.goto(finalVideoUrl);
                     }
 
                     if (trafficSource !== 'embed') {
@@ -787,7 +951,7 @@ export async function runBot(config, callbacks) {
                         currentWatchDuration = Math.floor(Math.random() * (parsedMax - parsedMin + 1)) + parsedMin;
                     }
                     log(`[${botId}] Nonton Target: ${currentWatchDuration} detik...`);
-                    await waitDuration(page, currentWatchDuration * 1000, botId, log);
+                    await waitDuration(page, currentWatchDuration * 1000, botId, log, config);
                     if (onVideoSuccess) onVideoSuccess();
 
                     log(`[${botId}] 4. Membuka Video Random Lainnya...`);
@@ -796,10 +960,15 @@ export async function runBot(config, callbacks) {
                         await page.waitForLoadState('domcontentloaded').catch(() => { });
                         await autoPlay(page, botId, log);
                         log(`[${botId}] Menonton video random selama 60 detik...`);
-                        await waitDuration(page, 60000, botId, log);
+                        await waitDuration(page, 60000, botId, log, config);
                     } else {
-                        const clickedRelated = await page.evaluate(() => {
-                            const thumbs = Array.from(document.querySelectorAll('a#thumbnail, a.ytm-compact-video-renderer, ytd-compact-video-renderer a, a.compact-media-item-image'));
+                        const clickedRelated = await page.evaluate((isMusicMode) => {
+                            let thumbs = [];
+                            if (isMusicMode) {
+                                thumbs = Array.from(document.querySelectorAll('ytmusic-two-row-item-renderer a, ytmusic-responsive-list-item-renderer a, a.yt-simple-endpoint.style-scope.ytmusic-player-queue-item'));
+                            } else {
+                                thumbs = Array.from(document.querySelectorAll('a#thumbnail, a.ytm-compact-video-renderer, ytd-compact-video-renderer a, a.compact-media-item-image'));
+                            }
                             const validThumbs = thumbs.filter(t => t.href && t.href.includes('/watch'));
                             if (validThumbs.length > 0) {
                                 const rnd = validThumbs[Math.floor(Math.random() * validThumbs.length)];
@@ -807,12 +976,12 @@ export async function runBot(config, callbacks) {
                                 return true;
                             }
                             return false;
-                        });
+                        }, isMusic);
                         if (clickedRelated) {
                             await page.waitForLoadState('domcontentloaded').catch(() => { });
                             await autoPlay(page, botId, log);
                             log(`[${botId}] Menonton video terkait selama 60 detik...`);
-                            await waitDuration(page, 60000, botId, log);
+                            await waitDuration(page, 60000, botId, log, config);
                         } else {
                             log(`[${botId}] ⚠️ Tidak menemukan video terkait.`);
                         }

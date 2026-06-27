@@ -164,6 +164,15 @@
                     <hr class="border-gray-700 my-4">
 
                     <div>
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Target Platform</label>
+                        <select id="targetPlatform"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm mb-4">
+                            <option value="youtube">YouTube (Biasa)</option>
+                            <option value="music">YouTube Music</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-semibold mb-2 text-gray-300">Sumber Traffic (Target
                             Utama)</label>
                         <select id="trafficSource"
@@ -242,6 +251,34 @@
                             class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-sm">
                         <p class="text-xs text-gray-500 italic mt-1">Jika dikosongkan, bot otomatis mengklik 1 video
                             rekomendasi yang muncul di halaman.</p>
+                    </div>
+
+                    <hr class="border-gray-700 my-4">
+
+                    <div class="flex items-center space-x-3 bg-gray-900 border border-gray-700 p-3 rounded-lg hover:border-gray-600 transition-colors cursor-pointer" onclick="document.getElementById('clickAds').click()">
+                        <input type="checkbox" id="clickAds" class="w-5 h-5 text-rose-500 rounded focus:ring-rose-500 bg-gray-800 border-gray-600 cursor-pointer">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-300 cursor-pointer">Klik Iklan Otomatis (Auto Click Ads)</label>
+                            <p class="text-xs text-gray-500 italic mt-1 cursor-pointer">Jika dicentang, bot akan sesekali mengklik iklan banner/overlay yang muncul dan membukanya di tab baru secara tersembunyi.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-700 my-4">
+
+                    <div class="flex items-center space-x-3 bg-gray-900 border border-gray-700 p-3 rounded-lg hover:border-gray-600 transition-colors cursor-pointer" onclick="document.getElementById('useCookies').click()">
+                        <input type="checkbox" id="useCookies" class="w-5 h-5 text-green-500 rounded focus:ring-green-500 bg-gray-800 border-gray-600 cursor-pointer">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-300 cursor-pointer">Gunakan Cookies Login (Bypass Login YouTube)</label>
+                            <p class="text-xs text-gray-500 italic mt-1 cursor-pointer">Jika dicentang, bot akan memuat file cookies (txt/json) sebelum menonton.</p>
+                        </div>
+                    </div>
+
+                    <div id="cookieFileGroup" class="hidden mt-4 mb-4">
+                        <label class="block text-sm font-semibold mb-2 text-gray-300">Upload File Cookies (.txt / .json)</label>
+                        <input type="file" id="cookieFileInput" accept=".txt,.json"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm font-mono cursor-pointer">
+                        <p class="text-xs text-gray-500 italic mt-1">Pilih file cookies Anda. Sistem akan membaca isinya secara otomatis.</p>
+                        <input type="hidden" id="cookieFileContent" value="">
                     </div>
 
                     <hr class="border-gray-700 my-4">
@@ -601,7 +638,7 @@
     <script>
 
         // POLYFILL TO PREVENT JS CRASHES ON MISSING ELEMENTS (TARGETED)
-        const idsToMock = ['logs', 'successLogs', 'failedLogs', 'botForm', 'startBtn', 'stopBtn', 'clearDataBtn', 'statusBadge', 'tabLogs', 'tabSuccess', 'tabFailed', 'viewBot', 'viewFinder', 'viewMirror', 'menuBot', 'menuFinder', 'menuMirror', 'finderForm', 'btnFind', 'btnStopFind', 'btnDownload', 'finderLogs', 'goodProxyCount', 'finderStatus', 'menuTikTok', 'formYoutubeContainer', 'formTikTokContainer', 'mainTitle', 'trafficSource', 'directInputGroup', 'searchInputGroup', 'embedInputGroup', 'externalInputGroup', 'ttMode', 'ttLiveGroup', 'ttUploadGroup', 'ttPhonefarmGroup', 'ttUaGroup', 'ttPfDeviceId', 'adbStatusText', 'refreshAdbBtn', 'tabAll', 'tabActiveBots', 'allLogs', 'activeBotsLogs', 'statVideoTotal', 'statVideoSuccess', 'statVideoFailed', 'screenshotModal', 'closeScreenshotBtn', 'screenshotImg', 'screenshotTitle', 'screenshotLoading', 'btnScanMirror', 'mirrorGrid', 'checkSyncAll', 'searchMirror', 'zoomSliderMirror', 'statUaTotal', 'statUaDesktop', 'statUaMobile', 'sysUaTotalBar', 'sysUaDesktopBar', 'sysUaMobileBar', 'cpuVal', 'cpuBar', 'ramVal', 'ramBar', 'netRx', 'netTx', 'proxySource', 'proxyFile', 'ttProxySource', 'ttProxyFile', 'tabFinder', 'tabChecker', 'finderFormContainer', 'checkerFormContainer', 'checkerForm', 'checkProxyList', 'proxyType', 'findCountry', 'findCount', 'repeatBot', 'repeatBotOptions', 'checkWhoer', 'recoUrl', 'recoDuration', 'embedWebUrl', 'externalUrl', 'videoUrl', 'searchKeyword', 'searchVideoId', 'headlessMode', 'browserCount', 'watchDurationMin', 'watchDurationMax', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'tiktokForm', 'ttStartBtn', 'ttStopBtn', 'ttFilePath', 'ttPfFilePath', 'ttLiveUrl', 'ttLike', 'ttShare', 'ttTap', 'ttTapCount', 'ttSong', 'ttCaption', 'ttPfSong', 'ttPfCaption', 'ttUserAgentMode', 'ttAccountFile', 'ttHeadless', 'ttBrowserCount'];
+        const idsToMock = ['logs', 'successLogs', 'failedLogs', 'botForm', 'startBtn', 'stopBtn', 'clearDataBtn', 'statusBadge', 'tabLogs', 'tabSuccess', 'tabFailed', 'viewBot', 'viewFinder', 'viewMirror', 'menuBot', 'menuFinder', 'menuMirror', 'finderForm', 'btnFind', 'btnStopFind', 'btnDownload', 'finderLogs', 'goodProxyCount', 'finderStatus', 'menuTikTok', 'formYoutubeContainer', 'formTikTokContainer', 'mainTitle', 'trafficSource', 'directInputGroup', 'searchInputGroup', 'embedInputGroup', 'externalInputGroup', 'ttMode', 'ttLiveGroup', 'ttUploadGroup', 'ttPhonefarmGroup', 'ttUaGroup', 'ttPfDeviceId', 'adbStatusText', 'refreshAdbBtn', 'tabAll', 'tabActiveBots', 'allLogs', 'activeBotsLogs', 'statVideoTotal', 'statVideoSuccess', 'statVideoFailed', 'screenshotModal', 'closeScreenshotBtn', 'screenshotImg', 'screenshotTitle', 'screenshotLoading', 'btnScanMirror', 'mirrorGrid', 'checkSyncAll', 'searchMirror', 'zoomSliderMirror', 'statUaTotal', 'statUaDesktop', 'statUaMobile', 'sysUaTotalBar', 'sysUaDesktopBar', 'sysUaMobileBar', 'cpuVal', 'cpuBar', 'ramVal', 'ramBar', 'netRx', 'netTx', 'proxySource', 'proxyFile', 'ttProxySource', 'ttProxyFile', 'tabFinder', 'tabChecker', 'finderFormContainer', 'checkerFormContainer', 'checkerForm', 'checkProxyList', 'proxyType', 'findCountry', 'findCount', 'repeatBot', 'repeatBotOptions', 'checkWhoer', 'recoUrl', 'recoDuration', 'embedWebUrl', 'externalUrl', 'videoUrl', 'searchKeyword', 'searchVideoId', 'headlessMode', 'browserCount', 'watchDurationMin', 'watchDurationMax', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'tiktokForm', 'ttStartBtn', 'ttStopBtn', 'ttFilePath', 'ttPfFilePath', 'ttLiveUrl', 'ttLike', 'ttShare', 'ttTap', 'ttTapCount', 'ttSong', 'ttCaption', 'ttPfSong', 'ttPfCaption', 'ttUserAgentMode', 'ttAccountFile', 'ttHeadless', 'ttBrowserCount', 'targetPlatform', 'useCookies', 'cookieFilePath', 'clickAds'];
         const origGetElementById = document.getElementById;
         document.getElementById = function (id) {
             let el = origGetElementById.call(document, id);
@@ -665,8 +702,8 @@
         }
 
         // FITUR: Simpan dan Muat Pengaturan (Local Storage)
-        const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'ipMode', 'uaAssignmentMode', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl', 'externalUrl', 'useVpn', 'isLooping', 'loopCount'];
-        const checkboxIds = ['checkWhoer'];
+        const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'ipMode', 'uaAssignmentMode', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl', 'externalUrl', 'useVpn', 'isLooping', 'loopCount', 'targetPlatform', 'cookieFilePath'];
+        const checkboxIds = ['checkWhoer', 'clickAds', 'useCookies'];
 
         const isLoopingEl = document.getElementById('isLooping');
         const loopCountGroup = document.getElementById('loopCountGroup');
@@ -732,6 +769,54 @@
         }
         trafficSourceEl.addEventListener('change', toggleTrafficUI);
         setTimeout(toggleTrafficUI, 100);
+
+        // Toggle UI based on Cookie Selection
+        const useCookiesEl = document.getElementById('useCookies');
+        const cookieFileGroup = document.getElementById('cookieFileGroup');
+        const cookieFileInput = document.getElementById('cookieFileInput');
+        const cookieFileContent = document.getElementById('cookieFileContent');
+
+        function toggleCookieUI() {
+            if (useCookiesEl && useCookiesEl.checked) {
+                if (cookieFileGroup) cookieFileGroup.classList.remove('hidden');
+            } else {
+                if (cookieFileGroup) cookieFileGroup.classList.add('hidden');
+            }
+        }
+        if (useCookiesEl) {
+            useCookiesEl.addEventListener('change', toggleCookieUI);
+            setTimeout(toggleCookieUI, 100);
+        }
+
+        let savedCookieContent = localStorage.getItem('bot_setting_cookieFileContent') || "";
+        if (cookieFileContent && savedCookieContent) {
+            cookieFileContent.value = savedCookieContent;
+            const statusEl = document.getElementById('cookieFileStatus');
+            if (statusEl) statusEl.innerHTML = `<span class="text-green-400">✅ File cookie sebelumnya telah dimuat dari memori.</span>`;
+        }
+        
+        if (cookieFileInput) {
+            cookieFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    if (cookieFileContent) cookieFileContent.value = "";
+                    localStorage.removeItem('bot_setting_cookieFileContent');
+                    const statusEl = document.getElementById('cookieFileStatus');
+                    if (statusEl) statusEl.innerHTML = ``;
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    if (cookieFileContent) {
+                        cookieFileContent.value = ev.target.result;
+                        localStorage.setItem('bot_setting_cookieFileContent', ev.target.result);
+                    }
+                    const statusEl = document.getElementById('cookieFileStatus');
+                    if (statusEl) statusEl.innerHTML = `<span class="text-green-400">✅ File dimuat: ${file.name} (${Math.round(file.size/1024)} KB)</span>`;
+                };
+                reader.readAsText(file);
+            });
+        }
 
         // Toggle UI based on VPN Selection
         const useVpnEl = document.getElementById('useVpn');
@@ -1180,7 +1265,11 @@
                 isLooping: document.getElementById('isLooping').value === 'true',
                 loopCount: parseInt(document.getElementById('loopCount').value) || 0,
                 tabDelay: parseInt(document.getElementById('tabDelay').value) || 5,
-                randomVideoUrl: document.getElementById('randomVideoUrl').value
+                randomVideoUrl: document.getElementById('randomVideoUrl').value,
+                clickAds: document.getElementById('clickAds') ? document.getElementById('clickAds').checked : false,
+                targetPlatform: document.getElementById('targetPlatform') ? document.getElementById('targetPlatform').value : 'youtube',
+                useCookies: document.getElementById('useCookies') ? document.getElementById('useCookies').checked : false,
+                cookieFileContent: document.getElementById('cookieFileContent') ? document.getElementById('cookieFileContent').value : ''
             };
 
             startBtn.disabled = true;
