@@ -263,6 +263,24 @@
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div class="flex items-center space-x-3 bg-gray-900 border border-gray-700 p-3 rounded-lg hover:border-gray-600 transition-colors cursor-pointer" onclick="document.getElementById('autoLike').click()">
+                            <input type="checkbox" id="autoLike" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 bg-gray-800 border-gray-600 cursor-pointer">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 cursor-pointer">Auto Like Video</label>
+                                <p class="text-xs text-gray-500 italic mt-1 cursor-pointer">Cek dan otomatis Like jika belum.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-3 bg-gray-900 border border-gray-700 p-3 rounded-lg hover:border-gray-600 transition-colors cursor-pointer" onclick="document.getElementById('autoSubscribe').click()">
+                            <input type="checkbox" id="autoSubscribe" class="w-5 h-5 text-red-500 rounded focus:ring-red-500 bg-gray-800 border-gray-600 cursor-pointer">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 cursor-pointer">Auto Subscribe Channel</label>
+                                <p class="text-xs text-gray-500 italic mt-1 cursor-pointer">Cek dan otomatis Subscribe jika belum.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <hr class="border-gray-700 my-4">
 
                     <div class="flex items-center space-x-3 bg-gray-900 border border-gray-700 p-3 rounded-lg hover:border-gray-600 transition-colors cursor-pointer" onclick="document.getElementById('useCookies').click()">
@@ -277,8 +295,9 @@
                         <label class="block text-sm font-semibold mb-2 text-gray-300">Upload File Cookies (.txt / .json)</label>
                         <input type="file" id="cookieFileInput" accept=".txt,.json"
                             class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm font-mono cursor-pointer">
-                        <p class="text-xs text-gray-500 italic mt-1">Pilih file cookies Anda. Sistem akan membaca isinya secara otomatis.</p>
+                        <p class="text-xs text-gray-500 italic mt-1">Pilih satu atau banyak file cookies Anda. Sistem akan menggabungkannya secara otomatis.</p>
                         <input type="hidden" id="cookieFileContent" value="">
+                        <p id="cookieFileStatus" class="mt-2 text-sm font-bold"></p>
                     </div>
 
                     <hr class="border-gray-700 my-4">
@@ -703,7 +722,7 @@
 
         // FITUR: Simpan dan Muat Pengaturan (Local Storage)
         const inputIds = ['recoUrl', 'recoDuration', 'videoUrl', 'watchDurationMin', 'watchDurationMax', 'proxyFile', 'headlessMode', 'browserCount', 'ipMode', 'uaAssignmentMode', 'userAgentMode', 'tabDelay', 'randomVideoUrl', 'trafficSource', 'searchKeyword', 'searchVideoId', 'embedWebUrl', 'externalUrl', 'useVpn', 'isLooping', 'loopCount', 'targetPlatform', 'cookieFilePath'];
-        const checkboxIds = ['checkWhoer', 'clickAds', 'useCookies'];
+        const checkboxIds = ['checkWhoer', 'clickAds', 'useCookies', 'autoLike', 'autoSubscribe'];
 
         const isLoopingEl = document.getElementById('isLooping');
         const loopCountGroup = document.getElementById('loopCountGroup');
@@ -796,25 +815,88 @@
         }
         
         if (cookieFileInput) {
-            cookieFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) {
+            // Aktifkan multiple selection
+            cookieFileInput.setAttribute('multiple', 'multiple');
+            
+            cookieFileInput.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) {
                     if (cookieFileContent) cookieFileContent.value = "";
                     localStorage.removeItem('bot_setting_cookieFileContent');
                     const statusEl = document.getElementById('cookieFileStatus');
                     if (statusEl) statusEl.innerHTML = ``;
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    if (cookieFileContent) {
-                        cookieFileContent.value = ev.target.result;
-                        localStorage.setItem('bot_setting_cookieFileContent', ev.target.result);
-                    }
-                    const statusEl = document.getElementById('cookieFileStatus');
-                    if (statusEl) statusEl.innerHTML = `<span class="text-green-400">✅ File dimuat: ${file.name} (${Math.round(file.size/1024)} KB)</span>`;
+                
+                const statusEl = document.getElementById('cookieFileStatus');
+                if (statusEl) statusEl.innerHTML = `<span class="text-yellow-400">⏳ Memproses ${files.length} file cookies...</span>`;
+                
+                let allAccounts = [];
+                let totalSize = 0;
+                
+                const parseNetscape = (str) => {
+                    const lines = str.split('\n');
+                    const c = [];
+                    lines.forEach(line => {
+                        if (line.trim() === '' || line.startsWith('#')) return;
+                        const parts = line.split('\t');
+                        if (parts.length >= 7) {
+                            c.push({
+                                domain: parts[0],
+                                path: parts[2],
+                                secure: parts[3] === 'TRUE',
+                                expires: parseInt(parts[4]),
+                                name: parts[5],
+                                value: parts[6].trim()
+                            });
+                        }
+                    });
+                    return c;
                 };
-                reader.readAsText(file);
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    totalSize += file.size;
+                    const text = await file.text();
+                    try {
+                        if (text.trim().startsWith('{')) {
+                            const parsed = JSON.parse(text);
+                            if (parsed.cookies && Array.isArray(parsed.cookies)) {
+                                allAccounts.push(parsed.cookies);
+                            } else {
+                                const keys = Object.keys(parsed).filter(k => Array.isArray(parsed[k]));
+                                keys.forEach(k => allAccounts.push(parsed[k]));
+                            }
+                        } else if (text.trim().startsWith('[')) {
+                            const parsed = JSON.parse(text);
+                            if (parsed.length > 0 && Array.isArray(parsed[0])) {
+                                allAccounts.push(...parsed);
+                            } else {
+                                allAccounts.push(parsed);
+                            }
+                        } else if (text.includes('Netscape HTTP Cookie File') || text.includes('\t')) {
+                            const parsed = parseNetscape(text);
+                            if (parsed.length > 0) allAccounts.push(parsed);
+                        }
+                    } catch (err) {
+                        console.error('Error parsing cookie file:', file.name, err);
+                    }
+                }
+                
+                if (allAccounts.length > 0) {
+                    const finalStr = JSON.stringify(allAccounts);
+                    if (cookieFileContent) {
+                        cookieFileContent.value = finalStr;
+                        try {
+                            localStorage.setItem('bot_setting_cookieFileContent', finalStr);
+                        } catch(e) {
+                            console.warn('Cookie terlalu besar untuk localStorage, tapi tetap berjalan di memori.');
+                        }
+                    }
+                    if (statusEl) statusEl.innerHTML = `<span class="text-green-400">✅ Berhasil memuat ${allAccounts.length} Akun dari ${files.length} file (${Math.round(totalSize/1024)} KB)</span>`;
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-400">❌ Gagal membaca file atau format tidak didukung.</span>`;
+                }
             });
         }
 

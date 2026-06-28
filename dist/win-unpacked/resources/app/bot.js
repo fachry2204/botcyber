@@ -19,6 +19,7 @@ let isAborted = false;
 export const proxySuccess = new Set();
 export const proxyFailed = new Set();
 export const activeBots = new Map();
+export const usedFingerprints = new Map(); // Untuk mencatat history fingerprint 24 jam
 
 export function getActiveBots() {
     return Array.from(activeBots.keys()).map(botId => {
@@ -134,27 +135,30 @@ async function checkYouTubeBlock(page) {
             return 'Terblokir: Unusual Traffic (Captcha)';
         }
 
-        // Deteksi error player HANYA jika elemen error overlay BENAR-BENAR TERLIHAT di layar
-        // Jangan gunakan innerText karena YouTube selalu embed teks ini di DOM tersembunyi!
-        const errorEl = document.querySelector(
-            '.ytp-error-content, .html5-video-player.ytp-error-overlay, yt-playability-error-supported-renderers, ytm-playability-error-supported-renderers, .ytm-error-overlay'
-        );
-        if (errorEl) {
-            const style = window.getComputedStyle(errorEl);
-            const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && errorEl.offsetHeight > 0;
-            if (isVisible) {
-                // Pastikan teks benar-benar error yang menghalangi
-                if (errorEl.innerText.toLowerCase().includes('something went wrong') || errorEl.innerText.toLowerCase().includes('unavailable')) {
+        // Error-screen untuk video yang dihapus atau di-private
+        const unavailableEl = document.querySelector('#error-screen, .yt-playability-error-supported-renderers');
+        if (unavailableEl && unavailableEl.offsetHeight > 0) {
+            // Pastikan elemen benar-benar terlihat
+            const style = window.getComputedStyle(unavailableEl);
+            if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                return 'Error: Video Tidak Tersedia';
+            }
+        }
+        
+        // Deteksi layar "Something went wrong" (Hanya jika benar-benar merusak pemutaran)
+        if (bodyText.includes('Something went wrong') && (bodyText.includes('Refresh or try again') || bodyText.includes('Playback'))) {
+            const vid = document.querySelector('video');
+            // Pastikan video benar-benar mati/pause akibat error ini
+            if (!vid || vid.paused || vid.ended) {
+                // Konfirmasi ke DOM apakah overlay error sungguhan tampil
+                const errBox = document.querySelector('.ytm-error-overlay, .ytp-error');
+                if (errBox && errBox.offsetHeight > 0) {
                     return 'Error Player: Something went wrong (Video gagal dimuat)';
                 }
             }
         }
 
-        // Deteksi video tidak tersedia
-        const unavailableEl = document.querySelector('.yt-playability-error-supported-renderers, #error-screen');
-        if (unavailableEl && unavailableEl.offsetHeight > 0) {
-            return 'Error: Video Tidak Tersedia';
-        }
+
 
         return null;
     }).catch(() => null);
@@ -172,46 +176,129 @@ async function waitDuration(page, durationMs, botId, log, config = {}) {
     // Jadwalkan waktu scroll pertama (antara 5 sampai 15 detik setelah video mulai)
     let nextScrollTime = Math.floor(Math.random() * 10000) + 5000;
     let lastKnownTime = 0;
+    
+    let hasLiked = false;
+    let hasSubscribed = false;
 
     while (elapsed < durationMs && !isAborted) {
         await page.waitForTimeout(Math.min(interval, durationMs - elapsed)).catch(() => { });
         elapsed += interval;
 
-        // --- HUMAN SCROLLING BEHAVIOR ---
-        if (elapsed >= nextScrollTime && !isAborted) {
-            try {
-                // Simulasikan aktivitas baca komentar / scroll rekomendasi dengan Native Events
-                const scrollDownAmount = Math.floor(Math.random() * 800) + 300; 
+        if (config.useCookies) {
+            if (config.autoLike && elapsed > 10000 && !hasLiked && !isAborted) {
+                hasLiked = true;
+                try {
+                    const isLiked = await page.evaluate(() => {
+                        const btn = document.querySelector('button[aria-label^="Unlike this video"], button[aria-pressed="true"] .yt-spec-icon-shape');
+                        if (btn) return true;
+                        const likeBtn = document.querySelector('like-button-view-model button, segmented-like-dislike-button-view-model button, ytd-menu-renderer button');
+                        return likeBtn && likeBtn.getAttribute('aria-pressed') === 'true';
+                    });
 
-                // 1. Scroll ke bawah menggunakan Trusted Mouse Wheel
-                await page.mouse.wheel(0, scrollDownAmount).catch(() => {});
-
-                // 2. Gerakkan mouse secara natural (Bezier curve/steps)
-                const randomX = Math.floor(Math.random() * 800) + 50;
-                const randomY = Math.floor(Math.random() * 600) + 50;
-                await page.mouse.move(randomX, randomY, { steps: 10 }).catch(() => {});
-
-                // 3. Baca-baca sebentar, lalu scroll kembali ke atas (Asynchronous)
-                (async () => {
-                    try {
-                        const readDelay = Math.floor(Math.random() * 4000) + 2000;
-                        await page.waitForTimeout(readDelay);
-                        if (!isAborted) {
-                            // Scroll balik ke atas
-                            await page.mouse.wheel(0, -scrollDownAmount).catch(() => {});
-                            // Gerakkan mouse kembali ke area video (tengah atas layar)
-                            const winSize = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight })).catch(()=>({w:800,h:600}));
-                            await page.mouse.move(winSize.w / 2, winSize.h / 3, { steps: 15 }).catch(() => {});
+                    if (isLiked) {
+                        log(`[${botId}] 👍 Video ini sudah di-Like sebelumnya. (Dilewati)`);
+                    } else {
+                        log(`[${botId}] 👍 Video belum di-Like. Memberikan Like...`);
+                        const likeBtn = page.locator('like-button-view-model button, segmented-like-dislike-button-view-model button, ytd-menu-renderer button[aria-label^="Like this video"]').first();
+                        if (await likeBtn.isVisible().catch(() => false)) {
+                            await likeBtn.click({ force: true }).catch(() => {});
+                            await page.waitForTimeout(1000);
                         }
-                    } catch(e) {}
-                })();
-
-            } catch (e) {
-                // Abaikan error jika halaman tertutup
+                    }
+                } catch(e) {}
             }
 
-            // Jadwalkan waktu scroll berikutnya (antara 10 sampai 25 detik ke depan)
-            nextScrollTime = elapsed + (Math.floor(Math.random() * 15000) + 10000);
+            if (config.autoSubscribe && elapsed > 15000 && !hasSubscribed && !isAborted) {
+                hasSubscribed = true;
+                try {
+                    const isSubscribed = await page.evaluate(() => {
+                        const btn = document.querySelector('ytd-subscribe-button-renderer button, subscribe-button-view-model button');
+                        if (!btn) return false;
+                        const text = (btn.innerText || btn.getAttribute('aria-label') || '').toLowerCase();
+                        return text.includes('subscribed') || text.includes('disubscribe') || btn.getAttribute('aria-pressed') === 'true' || btn.querySelector('[aria-label*="Subscribed"]');
+                    });
+
+                    if (isSubscribed) {
+                        log(`[${botId}] 🔔 Channel sudah di-Subscribe sebelumnya. (Dilewati)`);
+                    } else {
+                        log(`[${botId}] 🔔 Channel belum di-Subscribe. Melakukan Subscribe...`);
+                        const subBtn = page.locator('ytd-subscribe-button-renderer button, subscribe-button-view-model button').first();
+                        if (await subBtn.isVisible().catch(() => false)) {
+                            await subBtn.click({ force: true }).catch(() => {});
+                            await page.waitForTimeout(1000);
+                        }
+                    }
+                } catch(e) {}
+            }
+        }
+
+        // --- HUMAN INTERACTION (SUPER ACAK) ---
+        if (elapsed >= nextScrollTime && !isAborted) {
+            try {
+                // Pilih salah satu dari 4 aksi manusia secara acak (0, 1, 2, 3)
+                const actionType = Math.floor(Math.random() * 4); 
+                const winSize = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight })).catch(()=>({w:800,h:600}));
+
+                if (actionType === 0) {
+                    // Aksi 0: Mouse Jiggling (Menggerakkan mouse ke tengah player untuk memunculkan tombol, lalu keluar)
+                    log(`[${botId}] 🖱️ Human Interaction: Menggerakkan mouse (Jiggling) di layar...`);
+                    await page.mouse.move(winSize.w / 2, winSize.h / 3, { steps: 15 }).catch(() => {});
+                    await page.waitForTimeout(1000);
+                    await page.mouse.move(10, 10, { steps: 10 }).catch(() => {}); // Tarik keluar kursor
+                } 
+                else if (actionType === 1) {
+                    // Aksi 1: Baca Komentar (Scroll jauh ke bawah, diam 10-15 detik, scroll balik)
+                    log(`[${botId}] 📜 Human Interaction: Scroll turun ke area komentar untuk membaca...`);
+                    const scrollAmount = Math.floor(Math.random() * 1500) + 800; // Scroll sejauh 800-2300px
+                    await page.mouse.wheel(0, scrollAmount).catch(() => {});
+                    await page.mouse.move(winSize.w / 2, winSize.h / 2 + 200, { steps: 10 }).catch(() => {});
+                    
+                    // Membaca secara Asynchronous agar timer bot utama tidak macet
+                    (async () => {
+                        try {
+                            const readDelay = Math.floor(Math.random() * 10000) + 10000; // 10 sampai 20 detik
+                            await page.waitForTimeout(readDelay);
+                            if (!isAborted) {
+                                await page.mouse.wheel(0, -scrollAmount).catch(() => {}); // Balik ke video
+                                await page.mouse.move(winSize.w / 2, winSize.h / 4, { steps: 10 }).catch(() => {});
+                            }
+                        } catch(e) {}
+                    })();
+                }
+                else if (actionType === 2) {
+                    // Aksi 2: Random Pause/Play (Simulasi jeda ke toilet / angkat telepon)
+                    log(`[${botId}] ⏸️ Human Interaction: Jeda video sejenak (Simulasi toilet break)...`);
+                    await page.keyboard.press('k').catch(()=>{}); // Native pause YouTube
+                    
+                    (async () => {
+                        try {
+                            const pauseDuration = Math.floor(Math.random() * 8000) + 4000; // Jeda 4 - 12 detik
+                            await page.waitForTimeout(pauseDuration);
+                            if (!isAborted) {
+                                await page.keyboard.press('k').catch(()=>{}); // Play kembali
+                            }
+                        } catch(e) {}
+                    })();
+                }
+                else if (actionType === 3) {
+                    // Aksi 3: Klik Sembarang / Hover (Simulasi membaca deskripsi)
+                    const scrollAmount = Math.floor(Math.random() * 400) + 200; 
+                    await page.mouse.wheel(0, scrollAmount).catch(() => {});
+                    await page.mouse.move(winSize.w / 3, winSize.h / 2, { steps: 12 }).catch(() => {});
+                    (async () => {
+                        try {
+                            await page.waitForTimeout(3000);
+                            if (!isAborted) await page.mouse.wheel(0, -scrollAmount).catch(() => {});
+                        } catch(e) {}
+                    })();
+                }
+
+            } catch (e) {
+                // Abaikan error misal tab keburu ditutup
+            }
+
+            // Jadwalkan waktu interaksi super acak berikutnya (antara 20 sampai 45 detik ke depan)
+            nextScrollTime = elapsed + (Math.floor(Math.random() * 25000) + 20000);
         }
 
         // Terus pantau secara berkala apakah muncul error/login screen di tengah jalan
@@ -241,10 +328,15 @@ async function waitDuration(page, durationMs, botId, log, config = {}) {
                         const adTextSelectors = [
                             'Visit Advertiser', 'Kunjungi pengiklan', 'Get quote', 'Dapatkan penawaran',
                             'Order now', 'Pesan sekarang', 'Shop now', 'Beli sekarang',
-                            'Learn more', 'Pelajari selengkapnya', 'Nantikan', 'Buka'
+                            'Learn more', 'Pelajari selengkapnya', 'Nantikan', 'Buka', 'Kunjungi situs',
+                            'Visit site', 'Start now', 'Install', 'Instal', 'Download', 'Unduh',
+                            'Sign up', 'Daftar', 'Play now', 'Mainkan'
                         ];
                         const textLocators = adTextSelectors.map(t => `a:has-text("${t}"), button:has-text("${t}")`).join(', ');
-                        const classLocators = '.ytp-ad-visit-advertiser-button, .ytp-ad-visit-advertiser-info, .ytp-ad-button, .ytp-ad-action-interstitial-action-button, a[aria-label="Visit advertiser"], ytm-promoted-sparkles-web-renderer a, ytm-companion-ad-renderer button';
+                        
+                        // Hapus class generik seperti .ytp-ad-button dan .ytp-ad-visit-advertiser-info agar tidak nyasar ke tombol info (i)
+                        const classLocators = '.ytp-ad-visit-advertiser-button, .ytp-ad-action-interstitial-action-button, a[aria-label="Visit advertiser"], ytm-promoted-sparkles-web-renderer a.ad-action-button, ytm-companion-ad-renderer .ad-action-button, .ytm-custom-ad-action-button';
+                        
                         const adClickBtn = page.locator(`${textLocators}, ${classLocators}`).first();
                         
                         if (await adClickBtn.isVisible().catch(() => false)) {
@@ -352,14 +444,11 @@ async function waitDuration(page, durationMs, botId, log, config = {}) {
             } catch (err) {
                 if (err.message.includes('Something went wrong') && refreshCount < 3) {
                     refreshCount++;
-                    
-                    // Gunakan waktu terakhir yang tercatat sebelum crash
                     let lastTime = lastKnownTime;
-                    log(`[${botId}] ⚠️ Terdeteksi error pemutaran video pada menit ${Math.floor(lastTime/60)}:${lastTime%60} (detik ke-${lastTime}). Melakukan auto-refresh halaman untuk melanjutkan...`);
+                    log(`[${botId}] ⚠️ Terdeteksi error pemutaran video (Something went wrong) pada detik ke-${lastTime}. Melakukan auto-refresh...`);
                     
-                    const currentUrl = page.url();
                     try {
-                        const urlObj = new URL(currentUrl);
+                        const urlObj = new URL(page.url());
                         urlObj.searchParams.set('t', lastTime + 's');
                         await page.goto(urlObj.toString(), { waitUntil: 'domcontentloaded' }).catch(() => { });
                     } catch(e) {
@@ -368,7 +457,7 @@ async function waitDuration(page, durationMs, botId, log, config = {}) {
                     
                     await autoPlay(page, botId, log); // Coba play lagi setelah refresh
                 } else {
-                    throw err; // Lempar ke atas jika error lain atau sudah sering di-refresh
+                    throw err; // Error permanen (Captcha/Banned) atau sudah terlalu sering refresh
                 }
             }
         }
@@ -427,7 +516,7 @@ async function autoPlay(page, botId, log) {
 export async function runBot(config, callbacks) {
     isAborted = false;
     const { log, onSuccess, onFailed, onVideoPlay, onVideoSuccess, onVideoFail, onUaUsed } = callbacks;
-    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount, targetPlatform, clickAds, useCookies, cookieFileContent } = config;
+    const { videoUrl, recoUrl, recoDuration, proxyFile, headless, browserCount, ipMode, watchDurationMin, watchDurationMax, checkWhoer, userAgentMode, uaAssignmentMode, tabDelay, randomVideoUrl, trafficSource, searchKeyword, searchVideoId, embedWebUrl, externalUrl, useVpn, isLooping, loopCount, targetPlatform, clickAds, useCookies, cookieFileContent, autoLike, autoSubscribe } = config;
     const tabDelayMs = (tabDelay || 5) * 1000;
     const isMusic = targetPlatform === 'music';
 
@@ -510,15 +599,12 @@ export async function runBot(config, callbacks) {
         'Windows (Edge)': { ...devices['Desktop Edge'], userAgent: devices['Desktop Edge'].userAgent.replace(/Edg\/\d+/, `Edg/${majorVer}`).replace(/Chrome\/\d+/, `Chrome/${majorVer}`) }
     };
     const validDesktop = Object.keys(customDesktopDevices);
-    const mobileDevices = [
-        'Galaxy S8', 'Galaxy S9+', 'Galaxy S24', 'Galaxy A55', 
-        'Pixel 3', 'Pixel 4', 'Pixel 4a (5G)', 'Pixel 5', 'Pixel 7',
-        'Moto G4', 'Nexus 5X', 'Nexus 6P',
-        'iPhone 11', 'iPhone 11 Pro Max', 'iPhone 12', 'iPhone 12 Pro Max',
-        'iPhone 13', 'iPhone 13 Pro Max', 'iPhone 14', 'iPhone 14 Plus', 
-        'iPhone 14 Pro Max', 'iPhone 15', 'iPhone 15 Pro Max', 'iPhone XR', 'iPhone SE (3rd gen)'
-    ];
-    const validMobile = mobileDevices.filter(d => devices[d]);
+    // Mengambil SEMUA profil HP (Mobile & Tablet) yang ada di database raksasa Playwright
+    // Memfilter perangkat yang mendukung layar sentuh (hasTouch) dan bukan varian "landscape" agar tampilan video normal
+    const validMobile = Object.keys(devices).filter(name => {
+        const dev = devices[name];
+        return dev.hasTouch && !name.toLowerCase().includes('landscape') && !name.toLowerCase().includes('desktop');
+    });
 
     let devicePool = [];
     if (mode === 'desktop') devicePool = validDesktop;
@@ -526,51 +612,77 @@ export async function runBot(config, callbacks) {
     else devicePool = [...validDesktop, ...validMobile];
     if (devicePool.length === 0) devicePool = ['Windows (Chrome)'];
 
-    function getDeviceProfile() {
-        const devName = devicePool[Math.floor(Math.random() * devicePool.length)];
-        const isMob = validMobile.includes(devName);
-        let devProfile = isMob ? { ...devices[devName] } : { ...customDesktopDevices[devName] };
-        if (devProfile.userAgent && devProfile.userAgent.includes('Chrome/')) {
-            devProfile.userAgent = devProfile.userAgent.replace(/Chrome\/\d+/, `Chrome/${majorVer}`);
+    function getDeviceProfile(botId, logCallback) {
+        const now = Date.now();
+        // Bersihkan fingerprint yang lebih tua dari 24 jam (86400000 ms)
+        for (const [fp, time] of usedFingerprints.entries()) {
+            if (now - time > 86400000) {
+                usedFingerprints.delete(fp);
+            }
         }
-        const pStr = devName.includes('iPhone') ? 'iPhone' 
-                   : devName.includes('Macbook') ? 'MacIntel' 
-                   : devName.includes('Linux') ? 'Linux x86_64' 
-                   : isMob ? 'Linux armv8l' : 'Win32';
-        const oName = pStr === 'iPhone' ? 'iOS' 
-                    : pStr === 'Linux armv8l' ? 'Android' 
-                    : pStr === 'MacIntel' ? 'macOS' 
-                    : pStr === 'Linux x86_64' ? 'Linux' : 'Windows';
-        const oVer = pStr === 'iPhone' ? '17.4' 
-                   : pStr === 'Linux armv8l' ? '14.0.0' 
-                   : pStr === 'MacIntel' ? '10.15.7' 
-                   : pStr === 'Linux x86_64' ? '6.5.0' : '10.0.0';
-        return { devName, isMob, devProfile, pStr, oName, oVer };
+
+        let attempts = 0;
+        while (attempts < 1000) {
+            const devName = devicePool[Math.floor(Math.random() * devicePool.length)];
+            const cores = [2, 4, 6, 8, 12, 16][Math.floor(Math.random() * 6)];
+            const memory = [2, 4, 8, 16, 32][Math.floor(Math.random() * 5)];
+            const vendors = ['Google Inc. (Intel)', 'Google Inc. (NVIDIA)', 'Google Inc. (AMD)', 'Apple'];
+            const renderers = ['Intel(R) UHD Graphics', 'NVIDIA GeForce RTX 3060', 'AMD Radeon(TM) Graphics', 'Apple M1', 'Adreno (TM) 640'];
+            const vendor = vendors[Math.floor(Math.random() * vendors.length)];
+            const renderer = renderers[Math.floor(Math.random() * renderers.length)];
+
+            // Buat signature unik untuk mencegah duplikasi perangkat
+            const signature = `${devName}_${cores}C_${memory}G_${vendor.split(' ')[0]}_${renderer.replace(/ /g, '')}`;
+
+            if (usedFingerprints.has(signature) && uaAssignmentMode !== 'same') {
+                if (logCallback) logCallback(`[${botId}] ⚠️ Peringatan: Profil/Fingerprint ${signature} sudah digunakan dalam 24 jam terakhir. Mengacak ulang...`);
+                attempts++;
+                continue;
+            }
+
+            // Tandai bahwa fingerprint ini sekarang sudah digunakan
+            if (uaAssignmentMode !== 'same' || attempts === 0) {
+                usedFingerprints.set(signature, now);
+                if (logCallback) logCallback(`[${botId}] 🧬 Sidik jari perangkat unik didaftarkan: ${signature}`);
+            }
+
+            const isMob = validMobile.includes(devName);
+            let devProfile = isMob ? { ...devices[devName] } : { ...customDesktopDevices[devName] };
+            if (devProfile.userAgent && devProfile.userAgent.includes('Chrome/')) {
+                devProfile.userAgent = devProfile.userAgent.replace(/Chrome\/\d+/, `Chrome/${majorVer}`);
+            }
+            const pStr = devName.includes('iPhone') ? 'iPhone' 
+                       : devName.includes('Macbook') ? 'MacIntel' 
+                       : devName.includes('Linux') ? 'Linux x86_64' 
+                       : isMob ? 'Linux armv8l' : 'Win32';
+            const oName = pStr === 'iPhone' ? 'iOS' 
+                        : pStr === 'Linux armv8l' ? 'Android' 
+                        : pStr === 'MacIntel' ? 'macOS' 
+                        : pStr === 'Linux x86_64' ? 'Linux' : 'Windows';
+            const oVer = pStr === 'iPhone' ? '17.4' 
+                       : pStr === 'Linux armv8l' ? '14.0.0' 
+                       : pStr === 'MacIntel' ? '10.15.7' 
+                       : pStr === 'Linux x86_64' ? '6.5.0' : '10.0.0';
+                       
+            return { devName, isMob, devProfile, pStr, oName, oVer, cores, memory, vendor, renderer };
+        }
     }
 
     let sharedProfile = null;
     if (uaAssignmentMode === 'same') {
-        sharedProfile = getDeviceProfile();
+        sharedProfile = getDeviceProfile("Sistem", log);
         log(`🛡️ Mode UA Sama Aktif: Semua Tab akan menggunakan perangkat <span class="text-yellow-400 font-bold">${sharedProfile.devName}</span>`);
     }
 
     const maxLoop = isLooping ? (loopCount > 0 ? loopCount : Infinity) : 1;
-    let currentLoop = 0;
 
-    while (currentLoop < maxLoop && !isAborted) {
-        currentLoop++;
-        if (currentLoop > 1) {
-            log(`<br><span class="text-purple-400 font-bold">🔄 LOOPING AKTIF: Memulai putaran ke-${currentLoop}${maxLoop === Infinity ? ' (Unlimited)' : ' dari ' + maxLoop}.</span><br>`);
-            await new Promise(r => setTimeout(r, 5000));
-        }
+    log(`<br><span class="text-blue-400 font-bold">=================================================</span>`);
+    const titleMode = ipMode === 'same' ? 'IP Sama' : 'IP Berbeda-beda';
+    log(`<span class="text-blue-400 font-bold">🔄 WORKER POOL | Menjalankan ${browserCount} Worker Konstan (${titleMode})</span>`);
+    log(`<span class="text-blue-400 font-bold">=================================================</span><br>`);
 
-        log(`<br><span class="text-blue-400 font-bold">=================================================</span>`);
-        const titleMode = ipMode === 'same' ? 'IP Sama' : 'IP Berbeda-beda';
-        log(`<span class="text-blue-400 font-bold">🔄 WORKER POOL | Menjalankan ${browserCount} Worker Konstan (${titleMode})</span>`);
-        log(`<span class="text-blue-400 font-bold">=================================================</span><br>`);
-
-        // Helper untuk menjalankan 1 instance bot
-        async function runSingleBot(proxyConfig, globalIndex, workerIndex, delayIndex) {
+    // Helper untuk menjalankan 1 instance bot
+    async function runSingleBot(proxyConfig, globalIndex, workerIndex, delayIndex) {
             if (isAborted) return;
             const botId = ipMode === 'same' ? `Bot-${workerIndex}` : `Bot-${globalIndex + 1}`;
             let context = null;
@@ -612,8 +724,8 @@ export async function runBot(config, callbacks) {
                     contextOptions.timezoneId = proxyTimezone;
                 }
 
-                let currentProfile = uaAssignmentMode === 'same' ? sharedProfile : getDeviceProfile();
-                const { devName: randomDeviceName, isMob: isMobileProfile, devProfile: deviceProfile, pStr: platformStr, oName: osName, oVer: osVersion } = currentProfile;
+                let currentProfile = uaAssignmentMode === 'same' ? sharedProfile : getDeviceProfile(botId, log);
+                const { devName: randomDeviceName, isMob: isMobileProfile, devProfile: deviceProfile, pStr: platformStr, oName: osName, oVer: osVersion, cores, memory, vendor, renderer } = currentProfile;
 
                 log(`[${botId}] Standby... ${isMobileProfile ? '📱 Mobile' : '🖥️ Desktop'} (${randomDeviceName})`);
 
@@ -694,90 +806,31 @@ export async function runBot(config, callbacks) {
                                 };
                             }
                         }
-                    }, { platform: platformStr, osName: osName, osVersion: osVersion, isMobile: isMobileProfile, ua: deviceProfile.userAgent });
+
+                        // Mengacak Spesifikasi Hardware
+                        try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => opts.cores }); } catch (e) { }
+                        try { Object.defineProperty(navigator, 'deviceMemory', { get: () => opts.memory }); } catch (e) { }
+                        
+                        // Mengacak Kartu Grafis (WebGL)
+                        try {
+                            const getParameter = WebGLRenderingContext.prototype.getParameter;
+                            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                                if (parameter === 37445) return opts.vendor; // UNMASKED_VENDOR_WEBGL
+                                if (parameter === 37446) return opts.renderer; // UNMASKED_RENDERER_WEBGL
+                                return getParameter.apply(this, arguments);
+                            };
+                        } catch(e) {}
+                    }, { platform: platformStr, osName: osName, osVersion: osVersion, isMobile: isMobileProfile, ua: deviceProfile.userAgent, cores, memory, vendor, renderer });
 
                     await context.clearCookies().catch(() => { });
                     try { await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); }); } catch (e) { }
 
                     if (isAborted) throw new Error("Aborted");
 
-                    if (useCookies && cookieFileContent) {
-                        try {
-                            log(`[${botId}] 🍪 Mengunjungi YouTube untuk Bypass Login...`);
-                            await page.goto('https://www.youtube.com/');
-                            await page.waitForTimeout(2000);
-                            const cookieStr = cookieFileContent;
-                            let rawCookies = [];
-                            if (cookieStr.trim().startsWith('{')) {
-                                const parsed = JSON.parse(cookieStr);
-                                if (parsed.cookies && Array.isArray(parsed.cookies)) {
-                                    rawCookies = parsed.cookies;
-                                }
-                            } else if (cookieStr.trim().startsWith('[')) {
-                                rawCookies = JSON.parse(cookieStr);
-                            } else if (cookieStr.includes('Netscape HTTP Cookie File') || cookieStr.includes('\t')) {
-                                const lines = cookieStr.split('\n');
-                                lines.forEach(line => {
-                                    if (line.trim() === '' || line.startsWith('#')) return;
-                                    const parts = line.split('\t');
-                                    if (parts.length >= 7) {
-                                        rawCookies.push({
-                                            domain: parts[0],
-                                            path: parts[2],
-                                            secure: parts[3] === 'TRUE',
-                                            expires: parseInt(parts[4]),
-                                            name: parts[5],
-                                            value: parts[6].trim()
-                                        });
-                                    }
-                                });
-                            }
-                            
-                            let cookiesArr = [];
-                            if (rawCookies.length > 0) {
-                                // Sanitasi ketat hanya ambil properti yang didukung Playwright
-                                cookiesArr = rawCookies.map(c => {
-                                    let domain = c.domain;
-                                    if (domain && domain.includes('google.co.id')) {
-                                        domain = '.google.com';
-                                    }
-                                    
-                                    const cleanCookie = {
-                                        name: c.name,
-                                        value: c.value,
-                                        domain: domain,
-                                        path: c.path || '/',
-                                        expires: c.expires || -1,
-                                        httpOnly: c.httpOnly || false,
-                                        secure: c.secure || false
-                                    };
-                                    
-                                    if (c.sameSite && typeof c.sameSite === 'string') {
-                                        const ss = c.sameSite.toLowerCase();
-                                        if (ss === 'lax') cleanCookie.sameSite = 'Lax';
-                                        else if (ss === 'strict') cleanCookie.sameSite = 'Strict';
-                                        else if (ss === 'none' || ss === 'no_restriction') cleanCookie.sameSite = 'None';
-                                    }
-                                    
-                                    return cleanCookie;
-                                });
-                                await context.addCookies(cookiesArr).catch(e => {
-                                    log(`[${botId}] ⚠️ Error set cookie format: ${e.message}`);
-                                });
-                                await page.reload();
-                                await page.waitForTimeout(3000);
-                                log(`[${botId}] 🍪 Berhasil memuat ${cookiesArr.length} cookies dari file (Bypass Login).`);
-                            } else {
-                                log(`[${botId}] ⚠️ File cookie kosong atau format tidak didukung.`);
-                            }
-                        } catch (err) {
-                            log(`[${botId}] ⚠️ Gagal memuat cookie: ${err.message}`);
-                        }
-                    }
-
                     if (checkWhoer) {
-                        log(`[${botId}] 1. Mengecek Whoer.net...`);
-                        await page.goto('https://whoer.net/');
+                        log(`[${botId}] 1. Mengecek Whoer.net... (Maks 30 detik)`);
+                        // Tambahkan timeout spesifik 30 detik agar jika proxy mati, tidak stuck terlalu lama
+                        await page.goto('https://whoer.net/', { timeout: 30000 });
                         let whoerElapsed = 0;
                         let whoerScraped = false;
                         while (whoerElapsed < 10000 && !isAborted) {
@@ -813,6 +866,111 @@ export async function runBot(config, callbacks) {
                         if (isAborted) throw new Error("Aborted");
                     } else {
                         log(`[${botId}] 1. Cek Whoer.net Dilewati.`);
+                    }
+
+                    if (useCookies && cookieFileContent) {
+                        try {
+                            log(`[${botId}] 🍪 Mengunjungi YouTube untuk Bypass Login... (Maks 30 detik)`);
+                            // Timeout 30 detik agar jika proxy mati tidak stuck
+                            await page.goto('https://www.youtube.com/', { timeout: 30000 });
+                            await page.waitForTimeout(2000);
+                            const cookieStr = cookieFileContent;
+                            let rawCookies = [];
+                            if (cookieStr.trim().startsWith('{')) {
+                                const parsed = JSON.parse(cookieStr);
+                                if (parsed.cookies && Array.isArray(parsed.cookies)) {
+                                    rawCookies = parsed.cookies;
+                                } else {
+                                    // Format Multi-Akun Object: { "akun1": [...], "akun2": [...] }
+                                    const keys = Object.keys(parsed).filter(k => Array.isArray(parsed[k]));
+                                    if (keys.length > 0) {
+                                        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                                        rawCookies = parsed[randomKey];
+                                        log(`[${botId}] 🔀 Memilih random akun (Multi-Account JSON): ${randomKey}`);
+                                    }
+                                }
+                            } else if (cookieStr.trim().startsWith('[')) {
+                                const parsed = JSON.parse(cookieStr);
+                                if (parsed.length > 0 && Array.isArray(parsed[0])) {
+                                    // Format Multi-Akun Array of Arrays: [ [...akun1...], [...akun2...] ]
+                                    const randomIdx = Math.floor(Math.random() * parsed.length);
+                                    rawCookies = parsed[randomIdx];
+                                    log(`[${botId}] 🔀 Memilih random akun dari Multi-Account JSON (Urutan ke-${randomIdx + 1})`);
+                                } else {
+                                    // Format Single-Account
+                                    rawCookies = parsed;
+                                }
+                            } else if (cookieStr.includes('Netscape HTTP Cookie File') || cookieStr.includes('\t')) {
+                                const lines = cookieStr.split('\n');
+                                lines.forEach(line => {
+                                    if (line.trim() === '' || line.startsWith('#')) return;
+                                    const parts = line.split('\t');
+                                    if (parts.length >= 7) {
+                                        rawCookies.push({
+                                            domain: parts[0],
+                                            path: parts[2],
+                                            secure: parts[3] === 'TRUE',
+                                            expires: parseInt(parts[4]),
+                                            name: parts[5],
+                                            value: parts[6].trim()
+                                        });
+                                    }
+                                });
+                            }
+                            
+                            let cookiesArr = [];
+                            if (rawCookies.length > 0) {
+                                // Sanitasi ketat hanya ambil properti yang didukung Playwright
+                                cookiesArr = rawCookies.map(c => {
+                                    let domain = c.domain;
+                                    
+                                    const cleanCookie = {
+                                        name: c.name,
+                                        value: c.value,
+                                        domain: domain,
+                                        path: c.path || '/',
+                                        expires: c.expires ? Math.floor(c.expires) : -1,
+                                        httpOnly: Boolean(c.httpOnly),
+                                        secure: Boolean(c.secure)
+                                    };
+                                    
+                                    if (c.sameSite && typeof c.sameSite === 'string') {
+                                        const ss = c.sameSite.toLowerCase();
+                                        if (ss === 'lax') cleanCookie.sameSite = 'Lax';
+                                        else if (ss === 'strict') cleanCookie.sameSite = 'Strict';
+                                        else if (ss === 'none' || ss === 'no_restriction') cleanCookie.sameSite = 'None';
+                                    }
+                                    
+                                    return cleanCookie;
+                                });
+                                await context.addCookies(cookiesArr).catch(e => {
+                                    log(`[${botId}] ⚠️ Error set cookie format: ${e.message}`);
+                                });
+                                await page.reload({ timeout: 30000 }).catch(() => {});
+                                await page.waitForTimeout(3000);
+                                log(`[${botId}] 🍪 Berhasil memuat ${cookiesArr.length} cookies dari file (Bypass Login).`);
+                                
+                                // Cek status login dengan melihat elemen Avatar / Profile Picture di pojok kanan atas
+                                const isLoggedIn = await page.evaluate(() => {
+                                    // Berbagai selector avatar login di YouTube Desktop/Mobile/Music
+                                    const avatar = document.querySelector('#avatar-btn, ytd-topbar-menu-button-renderer img, .ytm-profile-icon, ytmusic-profile-icon');
+                                    // Selain itu, pastikan tombol "Sign in" raksasa tidak ada
+                                    const signInBtn = document.querySelector('a[href^="https://accounts.google.com/ServiceLogin"]');
+                                    return !!avatar && !signInBtn;
+                                });
+
+                                if (isLoggedIn) {
+                                    log(`<span class="text-green-400 font-bold">[${botId}] 👤 VERIFIED: Berhasil Login ke Akun YouTube!</span>`);
+                                } else {
+                                    log(`<span class="text-yellow-400 font-bold">[${botId}] ⚠️ WARNING: Cookies dimuat, namun Akun Gagal Login (Sesi kadaluarsa / IP Terdeteksi).</span>`);
+                                }
+
+                            } else {
+                                log(`[${botId}] ⚠️ File cookie kosong atau format tidak didukung.`);
+                            }
+                        } catch (err) {
+                            log(`[${botId}] ⚠️ Gagal memuat cookie (Proxy Timeout / Error): ${err.message}`);
+                        }
                     }
 
                     if (recoUrl && recoUrl.trim() !== '') {
@@ -1020,36 +1178,54 @@ export async function runBot(config, callbacks) {
             } // end of if (!isAborted)
         } // end of runSingleBot
 
-        if (ipMode === 'same') {
-            for (let i = 0; i < proxyQueue.length; i++) {
-                if (isAborted) break;
-                const currentProxy = proxyQueue[i];
-                
-                const workers = Array.from({ length: browserCount }).map((_, wIdx) => {
-                    return runSingleBot(currentProxy, i, wIdx + 1, wIdx);
-                });
-                await Promise.allSettled(workers);
-            }
-        } else {
-            let queueIndex = 0;
-            const totalProxies = proxyQueue.length;
+    if (ipMode === 'same') {
+        for (let i = 0; i < proxyQueue.length; i++) {
+            if (isAborted) break;
+            const currentProxy = proxyQueue[i];
             
             const workers = Array.from({ length: browserCount }).map(async (_, wIdx) => {
-                let firstRun = true;
-                while (queueIndex < totalProxies && !isAborted) {
-                    const i = queueIndex++;
-                    const currentProxy = proxyQueue[i];
-                    
-                    // Delay only for the first batch of workers to avoid crashing on start
-                    const delayIdx = firstRun ? wIdx : 0;
-                    firstRun = false;
-                    
+                let localLoop = 0;
+                while (localLoop < maxLoop && !isAborted) {
+                    if (localLoop > 0 && wIdx === 0) {
+                        log(`<span class="text-purple-400 font-bold">🔄 [Proxy ${i+1}] LOOPING AKTIF: Putaran ke-${localLoop+1}</span>`);
+                    }
+                    const delayIdx = localLoop === 0 ? wIdx : 0;
                     await runSingleBot(currentProxy, i, wIdx + 1, delayIdx);
+                    localLoop++;
                 }
             });
             await Promise.allSettled(workers);
         }
-    } // end of while(currentLoop < maxLoop)
+    } else {
+        let globalTaskIndex = 0;
+        let currentLoopTrack = 0;
+        
+        const workers = Array.from({ length: browserCount }).map(async (_, wIdx) => {
+            let firstRun = true;
+            while (!isAborted) {
+                const currentLoopNum = Math.floor(globalTaskIndex / proxyQueue.length);
+                if (maxLoop !== Infinity && currentLoopNum >= maxLoop) {
+                    break;
+                }
+                
+                if (currentLoopNum > currentLoopTrack && wIdx === 0) {
+                    currentLoopTrack = currentLoopNum;
+                    log(`<br><span class="text-purple-400 font-bold">🔄 LOOPING AKTIF: Memulai putaran ke-${currentLoopNum + 1}${maxLoop === Infinity ? ' (Unlimited)' : ' dari ' + maxLoop}.</span><br>`);
+                }
+                
+                const proxyIdx = globalTaskIndex % proxyQueue.length;
+                const taskIdx = globalTaskIndex;
+                globalTaskIndex++; // Ambil tiket antrean
+                
+                const currentProxy = proxyQueue[proxyIdx];
+                const delayIdx = firstRun ? wIdx : 0;
+                firstRun = false;
+                
+                await runSingleBot(currentProxy, taskIdx, wIdx + 1, delayIdx);
+            }
+        });
+        await Promise.allSettled(workers);
+    }
 
     if (isAborted) {
         log("<br><span class='text-yellow-400 font-bold'>🛑 Seluruh operasi bot telah dihentikan secara paksa oleh user.</span>");

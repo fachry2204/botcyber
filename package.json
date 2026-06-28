@@ -1,7 +1,8 @@
 {
   "name": "botcyber",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "BotCyber Pro",
+  "author": "Fachry",
   "main": "main.js",
   "type": "module",
   "scripts": {
