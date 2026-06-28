@@ -1,8 +1,8 @@
-version: 1.0.8
+version: 1.0.9
 files:
-  - url: botcyber-Setup-1.0.8.exe
-    sha512: qEXsBevtAgOrk/DC1RMr0FL+iXxnoG08FHWatN6xrUBL1ZdQbG5Gdq+qo0WCqfzafLDmm7UOU2UE0OzNBrSsPg==
-    size: 112440086
-path: botcyber-Setup-1.0.8.exe
-sha512: qEXsBevtAgOrk/DC1RMr0FL+iXxnoG08FHWatN6xrUBL1ZdQbG5Gdq+qo0WCqfzafLDmm7UOU2UE0OzNBrSsPg==
-releaseDate: '2026-06-28T07:52:51.832Z'
+  - url: botcyber-Setup-1.0.9.exe
+    sha512: 20MKcRMZJv7mAGVbDYEEUY7CMezLaNJbmg7brGGIwQcmERnGR6Yx7P0U787cX4EYrwo305OA9ypPb28uJhmeAQ==
+    size: 112440038
+path: botcyber-Setup-1.0.9.exe
+sha512: 20MKcRMZJv7mAGVbDYEEUY7CMezLaNJbmg7brGGIwQcmERnGR6Yx7P0U787cX4EYrwo305OA9ypPb28uJhmeAQ==
+releaseDate: '2026-06-28T08:11:37.698Z'
